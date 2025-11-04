@@ -1,3 +1,5 @@
+mod db;
+
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
@@ -5,14 +7,19 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph},
+    layout::{Alignment, Constraint},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem},
     Terminal,
 };
-use std::io;
+use std::{io, time::Duration};
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Check schema compatibility on startup
+    db::check_schema_version()
+        .map_err(|e| format!("Schema check failed: {}", e))?;
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -20,27 +27,63 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    // Hardcoded channel for now - will add tabs later
+    let channel = "general";
+
     // Main loop
     loop {
+        // Fetch messages (poll every iteration)
+        let messages = db::get_channel_messages(channel)
+            .unwrap_or_else(|_| vec![]);
+
         terminal.draw(|frame| {
             let area = frame.area();
 
-            // Create a centered block
-            let block = Block::default()
-                .title("🚀 space-cmd - Mission Control")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::Cyan));
+            // Convert messages to list items
+            let items: Vec<ListItem> = messages
+                .iter()
+                .map(|msg| {
+                    let timestamp = msg.created_at.get(11..19).unwrap_or("??:??:??");
 
-            let text = Paragraph::new("Hello, Rust TUI World!\n\nPress 'q' to quit")
-                .alignment(Alignment::Center)
-                .block(block);
+                    // Color-code: agents = cyan, human = green
+                    let agent_color = if msg.agent_id == "human" {
+                        Color::Green
+                    } else {
+                        Color::Cyan
+                    };
 
-            frame.render_widget(text, area);
+                    let line = Line::from(vec![
+                        Span::styled(
+                            format!("{} ", timestamp),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                        Span::styled(
+                            format!("{:12}", msg.agent_id),
+                            Style::default()
+                                .fg(agent_color)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::raw(format!(" > {}", msg.content)),
+                    ]);
+
+                    ListItem::new(line)
+                })
+                .collect();
+
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title(format!("📡 {}", channel))
+                        .title_alignment(Alignment::Left)
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::White)),
+                );
+
+            frame.render_widget(list, area);
         })?;
 
-        // Handle input
-        if event::poll(std::time::Duration::from_millis(100))? {
+        // Handle input (poll every 500ms like Council)
+        if event::poll(Duration::from_millis(500))? {
             if let Event::Key(key) = event::read()? {
                 if key.code == KeyCode::Char('q') {
                     break;
