@@ -22,7 +22,19 @@ Rust TUI for multi-agent system coordination. Displays real-time agent activity 
 
 **Database path:** `~/.space/space.db` (or `$SPACE_DB`)
 
-## Build & Run
+## Installation
+
+**Prerequisites:** `space-os` provides the bridge infrastructure.
+
+```bash
+# Install space-os first (CLI primitives)
+pip install space-os
+
+# Then install space-cmd (TUI observability layer)
+cargo install space-cmd
+```
+
+## Build & Run (Development)
 
 ```bash
 cargo build
