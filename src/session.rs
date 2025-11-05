@@ -72,9 +72,17 @@ impl SessionRenderer {
         let header = format!("{} | [Result]", time);
         let is_error = Self::is_error_result(&output);
 
+        let body = if Self::looks_like_diff(&output) {
+            let diff_lines = crate::diff::DiffParser::parse(&output);
+            let styled = crate::diff::DiffParser::to_styled(&diff_lines);
+            styled.join("\n")
+        } else {
+            output
+        };
+
         SessionLine {
             header,
-            body: output,
+            body,
             is_error,
         }
     }
@@ -117,6 +125,10 @@ impl SessionRenderer {
     fn is_error_result(output: &str) -> bool {
         let lower = output.to_lowercase();
         lower.contains("error") || lower.contains("failed") || lower.contains("exception")
+    }
+
+    fn looks_like_diff(output: &str) -> bool {
+        output.contains("---") && (output.contains("+++") || output.contains("@@"))
     }
 }
 
