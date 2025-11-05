@@ -1,21 +1,12 @@
-mod app;
-mod db;
-mod schema;
-
-use app::{AppState, SidebarTab};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{
-    Terminal,
-    backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-};
+use ratatui::{Terminal, backend::CrosstermBackend};
+use space_cmd::app::AppState;
+use space_cmd::db;
+use space_cmd::ui::render_ui;
 use std::{io, time::Duration};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,14 +42,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('h') => app_state.switch_tab(),
                 KeyCode::Char('l') => app_state.switch_tab(),
                 KeyCode::Char('j') => {
-                    if app_state.active_tab == SidebarTab::Channels {
+                    if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
                         app_state.scroll_messages_down();
                     } else {
                         app_state.next_in_sidebar();
                     }
                 }
                 KeyCode::Char('k') => {
-                    if app_state.active_tab == SidebarTab::Channels {
+                    if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
                         app_state.scroll_messages_up();
                     } else {
                         app_state.prev_in_sidebar();
@@ -113,273 +104,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
 
     Ok(())
-}
-
-fn render_ui(frame: &mut ratatui::Frame, app_state: &AppState) {
-    let main_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
-        .split(frame.area());
-
-    let content_area = main_layout[0];
-    let input_area = main_layout[1];
-
-    let horizontal = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
-        .split(content_area);
-
-    let sidebar_area = horizontal[0];
-    let right_pane_area = horizontal[1];
-
-    render_sidebar(frame, app_state, sidebar_area);
-    render_right_pane(frame, app_state, right_pane_area);
-    render_input_bar(frame, app_state, input_area);
-}
-
-fn render_sidebar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
-    let tab_titles = vec!["CHANNELS", "SPAWNS"];
-    let tab_index = match app_state.active_tab {
-        SidebarTab::Channels => 0,
-        SidebarTab::Spawns => 1,
-    };
-
-    let tabs_widget = ratatui::widgets::Tabs::new(tab_titles)
-        .block(Block::default().borders(Borders::BOTTOM))
-        .select(tab_index)
-        .style(Style::default().fg(Color::White))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        );
-
-    let inner_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(1)])
-        .split(area);
-
-    frame.render_widget(tabs_widget, inner_layout[0]);
-
-    match app_state.active_tab {
-        SidebarTab::Channels => render_channels_list(frame, app_state, inner_layout[1]),
-        SidebarTab::Spawns => render_spawns_list(frame, app_state, inner_layout[1]),
-    }
-}
-
-fn render_channels_list(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
-    let items: Vec<ListItem> = app_state
-        .channels
-        .iter()
-        .enumerate()
-        .map(|(idx, ch)| {
-            let is_focused = idx == app_state.active_channel_idx;
-            let is_unread = app_state.is_channel_unread(&ch.channel_id);
-
-            let indicator = if is_focused {
-                ">"
-            } else if is_unread {
-                "●"
-            } else {
-                " "
-            };
-
-            let name = format!("{} {}", indicator, ch.name);
-            ListItem::new(name)
-        })
-        .collect();
-
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL))
-        .style(Style::default().fg(Color::White));
-
-    frame.render_widget(list, area);
-}
-
-fn render_spawns_list(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
-    use crate::app::format_elapsed_time;
-
-    let mut items: Vec<ListItem> = Vec::new();
-
-    for (idx, spawn) in app_state.spawns.iter().enumerate() {
-        let is_focused = idx == app_state.active_spawn_idx;
-        let is_expanded = app_state.expanded_spawns.contains(&spawn.id);
-
-        let indicator = match (is_focused, is_expanded) {
-            (true, _) => ">",
-            (false, true) => "▾",
-            (false, false) => "▸",
-        };
-
-        let status_style = match spawn.status.as_str() {
-            "running" => "R",
-            "paused" => "P",
-            "pending" => "W",
-            _ => "?",
-        };
-
-        let elapsed = format_elapsed_time(&spawn.created_at);
-        let spawn_short = spawn.id.get(0..7).unwrap_or("?");
-        let name = format!(
-            "{} {}{} ({})",
-            indicator, status_style, spawn_short, elapsed
-        );
-
-        items.push(ListItem::new(name));
-
-        if is_expanded {
-            if let Some(session_id) = &spawn.session_id {
-                let transcripts = db::get_transcripts(session_id, 8).unwrap_or_else(|_| vec![]);
-                let mut transcript_lines: Vec<String> = transcripts
-                    .iter()
-                    .rev()
-                    .map(|t| {
-                        let ts = t.timestamp.get(11..19).unwrap_or("??:??:??");
-                        format!("  {} | {}", ts, t.content)
-                    })
-                    .collect();
-
-                let total_transcripts = transcripts.len();
-                if total_transcripts > 8 {
-                    transcript_lines.push(format!("  ...{} more", total_transcripts - 8));
-                }
-
-                for line in transcript_lines {
-                    items.push(ListItem::new(line));
-                }
-            } else {
-                items.push(ListItem::new("  (no session linked)"));
-            }
-        }
-    }
-
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL))
-        .style(Style::default().fg(Color::White));
-
-    frame.render_widget(list, area);
-}
-
-fn render_right_pane(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
-    let title = if let Some(channel) = app_state.current_channel() {
-        format!("Channel: {}", channel.name)
-    } else {
-        "No channel selected".to_string()
-    };
-
-    let mut items: Vec<ListItem> = app_state
-        .messages
-        .iter()
-        .rev()
-        .enumerate()
-        .filter_map(|(idx, msg)| {
-            let scroll_pos = app_state.message_scroll_offset;
-            if idx >= scroll_pos && idx < scroll_pos + 100 {
-                Some((idx - scroll_pos, msg))
-            } else {
-                None
-            }
-        })
-        .map(|(_, msg)| {
-            let timestamp = msg.created_at.get(11..19).unwrap_or("??:??:??");
-            let agent_color = if msg.agent_id == "human" {
-                Color::Green
-            } else {
-                Color::Cyan
-            };
-
-            let line = Line::from(vec![
-                Span::styled(
-                    format!("{} ", timestamp),
-                    Style::default().fg(Color::DarkGray),
-                ),
-                Span::styled(
-                    format!("{:12}", msg.agent_id),
-                    Style::default()
-                        .fg(agent_color)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(format!(" {}", msg.content)),
-            ]);
-
-            ListItem::new(line)
-        })
-        .collect();
-
-    if items.is_empty() {
-        items.push(ListItem::new(Span::styled(
-            "No messages",
-            Style::default().fg(Color::DarkGray),
-        )));
-    }
-
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title(title)
-                .title_alignment(Alignment::Left)
-                .borders(Borders::ALL),
-        )
-        .style(Style::default().fg(Color::White));
-
-    frame.render_widget(list, area);
-}
-
-fn render_input_bar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
-    use app::AutocompleteMode;
-
-    let prompt = "/bridge send general ";
-    let text = format!("{}{}", prompt, app_state.input_text);
-
-    let input = Paragraph::new(text)
-        .block(Block::default().borders(Borders::TOP))
-        .style(Style::default().fg(Color::Cyan));
-
-    frame.render_widget(input, area);
-
-    if let Some(mode) = app_state.autocomplete_mode
-        && area.height > 1
-    {
-        let dropdown_area = Rect {
-            x: area.x,
-            y: area.y + 1,
-            width: area.width,
-            height: (area.height - 1).min(10),
-        };
-
-        let items: Vec<ListItem> = app_state
-            .autocomplete_list
-            .iter()
-            .enumerate()
-            .take(10)
-            .map(|(idx, item)| {
-                let prefix = if idx == app_state.autocomplete_idx {
-                    "➜ "
-                } else {
-                    "  "
-                };
-
-                let style = if idx == app_state.autocomplete_idx {
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(Color::White)
-                };
-
-                let label = match mode {
-                    AutocompleteMode::Agent => format!("⚡ {}", item),
-                    AutocompleteMode::File => format!("📄 {}", item),
-                };
-
-                ListItem::new(Span::styled(format!("{}{}", prefix, label), style))
-            })
-            .collect();
-
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM))
-            .style(Style::default().fg(Color::White));
-
-        frame.render_widget(list, dropdown_area);
-    }
 }
