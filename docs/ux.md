@@ -1,8 +1,10 @@
 # space-cmd UX Design
 
+**Status:** Phase 2 Complete. CHANNELS tab, SPAWNS tab, input bar + autocomplete implemented and tested.
+
 ## Vision
 
-space-cmd replaces Claude Code CLI as the human control surface for steering space agents. Tyson observes agents working, intervenes with `@mention` commands, and monitors execution traces—all without leaving the TUI.
+space-cmd replaces Claude Code CLI as the human control surface for steering space agents. User observes agents working, intervenes with `@mention` commands, and monitors execution traces—all without leaving the TUI.
 
 ## Data Model
 

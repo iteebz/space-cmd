@@ -3,6 +3,7 @@ name = "space-cmd"
 version = "0.0.1"
 edition = "2024"
 description = "Command center for space agents"
+keywords = ["space", "agents", "cli", "tui"]
 license = "Apache-2.0"
 repository = "https://github.com/iteebz/space-cmd"
 
