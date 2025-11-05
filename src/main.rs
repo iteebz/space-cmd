@@ -50,14 +50,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('q') => break,
                 KeyCode::Char('h') => app_state.switch_tab(),
                 KeyCode::Char('l') => app_state.switch_tab(),
-                KeyCode::Char('j') | KeyCode::Down => {
+                KeyCode::Char('j') => {
                     if app_state.active_tab == SidebarTab::Channels {
                         app_state.scroll_messages_down();
                     } else {
                         app_state.next_in_sidebar();
                     }
                 }
-                KeyCode::Char('k') | KeyCode::Up => {
+                KeyCode::Char('k') => {
                     if app_state.active_tab == SidebarTab::Channels {
                         app_state.scroll_messages_up();
                     } else {
@@ -65,6 +65,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 KeyCode::Char(' ') => app_state.toggle_spawn_expansion(),
+                KeyCode::Char(ch) => app_state.add_char(ch),
+                KeyCode::Backspace => app_state.backspace(),
+                KeyCode::Enter => {
+                    let _ = app_state.submit_input();
+                }
+                KeyCode::Up => app_state.history_prev(),
+                KeyCode::Down => app_state.history_next(),
+                KeyCode::Esc => {
+                    app_state.input_text.clear();
+                    app_state.history_idx = None;
+                }
                 _ => {}
             }
         }
@@ -95,7 +106,7 @@ fn render_ui(frame: &mut ratatui::Frame, app_state: &AppState) {
 
     render_sidebar(frame, app_state, sidebar_area);
     render_right_pane(frame, app_state, right_pane_area);
-    render_input_bar(frame, input_area);
+    render_input_bar(frame, app_state, input_area);
 }
 
 fn render_sidebar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
@@ -286,8 +297,11 @@ fn render_right_pane(frame: &mut ratatui::Frame, app_state: &AppState, area: Rec
     frame.render_widget(list, area);
 }
 
-fn render_input_bar(frame: &mut ratatui::Frame, area: Rect) {
-    let input = Paragraph::new("/bridge send general ")
+fn render_input_bar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
+    let prompt = "/bridge send general ";
+    let text = format!("{}{}", prompt, app_state.input_text);
+
+    let input = Paragraph::new(text)
         .block(Block::default().borders(Borders::TOP))
         .style(Style::default().fg(Color::Cyan));
 
