@@ -36,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(channel) = app_state.current_channel() {
             app_state.messages =
                 db::get_channel_messages(&channel.channel_id).unwrap_or_else(|_| vec![]);
+            app_state.mark_channel_read();
         }
 
         terminal.draw(|frame| {
@@ -121,11 +122,18 @@ fn render_channels_list(frame: &mut ratatui::Frame, app_state: &AppState, area: 
         .iter()
         .enumerate()
         .map(|(idx, ch)| {
-            let name = if idx == app_state.active_channel_idx {
-                format!("● {}", ch.name)
+            let is_focused = idx == app_state.active_channel_idx;
+            let is_unread = app_state.is_channel_unread(&ch.channel_id);
+
+            let indicator = if is_focused {
+                ">"
+            } else if is_unread {
+                "●"
             } else {
-                format!("  {}", ch.name)
+                " "
             };
+
+            let name = format!("{} {}", indicator, ch.name);
             ListItem::new(name)
         })
         .collect();

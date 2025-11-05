@@ -1,5 +1,5 @@
 use crate::schema::{Channel, Message, Spawn};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SidebarTab {
@@ -16,6 +16,8 @@ pub struct AppState {
     pub channels: Vec<Channel>,
     pub messages: Vec<Message>,
     pub spawns: Vec<Spawn>,
+
+    pub last_viewed_message_id: HashMap<String, String>,
 
     #[allow(dead_code)]
     pub message_scroll_offset: usize,
@@ -34,6 +36,8 @@ impl AppState {
             channels: vec![],
             messages: vec![],
             spawns: vec![],
+
+            last_viewed_message_id: HashMap::new(),
 
             message_scroll_offset: 0,
             sidebar_scroll_offset: 0,
@@ -99,6 +103,25 @@ impl AppState {
 
     pub fn current_channel(&self) -> Option<&Channel> {
         self.channels.get(self.active_channel_idx)
+    }
+
+    pub fn mark_channel_read(&mut self) {
+        if let Some(channel) = self.current_channel()
+            && let Some(msg) = self.messages.last()
+        {
+            self.last_viewed_message_id
+                .insert(channel.channel_id.clone(), msg.message_id.clone());
+        }
+    }
+
+    pub fn is_channel_unread(&self, channel_id: &str) -> bool {
+        if let Some(last_viewed) = self.last_viewed_message_id.get(channel_id) {
+            self.messages
+                .iter()
+                .any(|m| m.channel_id == channel_id && m.message_id > *last_viewed)
+        } else {
+            self.channels.iter().any(|ch| ch.channel_id == channel_id)
+        }
     }
 
     #[allow(dead_code)]
