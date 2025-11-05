@@ -22,8 +22,7 @@ fn get_db_path() -> String {
 /// Fails fast if space-os schema is too old
 pub fn check_schema_version() -> Result<(), String> {
     let db_path = get_db_path();
-    let conn = Connection::open(&db_path)
-        .map_err(|e| format!("Failed to open space.db: {}", e))?;
+    let conn = Connection::open(&db_path).map_err(|e| format!("Failed to open space.db: {}", e))?;
 
     let version: i32 = conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
@@ -49,17 +48,34 @@ pub fn get_channel_messages(channel_id: &str) -> Result<Vec<Message>> {
         "SELECT agent_id, content, created_at
          FROM messages
          WHERE channel_id = ?
-         ORDER BY created_at"
+         ORDER BY created_at",
     )?;
 
-    let messages = stmt.query_map([channel_id], |row| {
-        Ok(Message {
-            agent_id: row.get(0)?,
-            content: row.get(1)?,
-            created_at: row.get(2)?,
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
+    let messages = stmt
+        .query_map([channel_id], |row| {
+            Ok(Message {
+                agent_id: row.get(0)?,
+                content: row.get(1)?,
+                created_at: row.get(2)?,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(messages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_message_struct() {
+        let msg = Message {
+            agent_id: "zealot-1".to_string(),
+            content: "Test message".to_string(),
+            created_at: "2025-11-05T12:34:56Z".to_string(),
+        };
+        assert_eq!(msg.agent_id, "zealot-1");
+        assert_eq!(msg.content, "Test message");
+    }
 }

@@ -3,22 +3,21 @@ mod db;
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint},
+    layout::Alignment,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
-    Terminal,
 };
 use std::{io, time::Duration};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check schema compatibility on startup
-    db::check_schema_version()
-        .map_err(|e| format!("Schema check failed: {}", e))?;
+    db::check_schema_version().map_err(|e| format!("Schema check failed: {}", e))?;
 
     // Setup terminal
     enable_raw_mode()?;
@@ -33,8 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Main loop
     loop {
         // Fetch messages (poll every iteration)
-        let messages = db::get_channel_messages(channel)
-            .unwrap_or_else(|_| vec![]);
+        let messages = db::get_channel_messages(channel).unwrap_or_else(|_| vec![]);
 
         terminal.draw(|frame| {
             let area = frame.area();
@@ -70,25 +68,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .collect();
 
-            let list = List::new(items)
-                .block(
-                    Block::default()
-                        .title(format!("📡 {}", channel))
-                        .title_alignment(Alignment::Left)
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::White)),
-                );
+            let list = List::new(items).block(
+                Block::default()
+                    .title(format!("📡 {}", channel))
+                    .title_alignment(Alignment::Left)
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::White)),
+            );
 
             frame.render_widget(list, area);
         })?;
 
         // Handle input (poll every 500ms like Council)
-        if event::poll(Duration::from_millis(500))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
-                }
-            }
+        if event::poll(Duration::from_millis(500))?
+            && let Event::Key(key) = event::read()?
+            && key.code == KeyCode::Char('q')
+        {
+            break;
         }
     }
 

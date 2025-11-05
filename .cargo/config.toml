@@ -1,0 +1,6 @@
+[build]
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/ld"]
+
+[env]
+CC = "/usr/bin/clang"
+CXX = "/usr/bin/clang++"
