@@ -129,14 +129,18 @@ impl AppState {
         self.spawns.get(self.active_spawn_idx)
     }
 
-    #[allow(dead_code)]
     pub fn scroll_messages_down(&mut self) {
-        self.message_scroll_offset = self.message_scroll_offset.saturating_add(1);
+        let max_scroll = self.messages.len().saturating_sub(1);
+        self.message_scroll_offset = (self.message_scroll_offset + 1).min(max_scroll);
+    }
+
+    pub fn scroll_messages_up(&mut self) {
+        self.message_scroll_offset = self.message_scroll_offset.saturating_sub(1);
     }
 
     #[allow(dead_code)]
-    pub fn scroll_messages_up(&mut self) {
-        self.message_scroll_offset = self.message_scroll_offset.saturating_sub(1);
+    pub fn reset_message_scroll(&mut self) {
+        self.message_scroll_offset = 0;
     }
 }
 
@@ -223,12 +227,27 @@ mod tests {
     #[test]
     fn test_scroll_messages() {
         let mut state = AppState::new();
+        state.messages = vec![
+            Message {
+                message_id: "m1".to_string(),
+                channel_id: "ch1".to_string(),
+                agent_id: "hailot".to_string(),
+                content: "msg1".to_string(),
+                created_at: "2025-11-05T00:00:00Z".to_string(),
+            },
+            Message {
+                message_id: "m2".to_string(),
+                channel_id: "ch1".to_string(),
+                agent_id: "hailot".to_string(),
+                content: "msg2".to_string(),
+                created_at: "2025-11-05T00:01:00Z".to_string(),
+            },
+        ];
+
         assert_eq!(state.message_scroll_offset, 0);
         state.scroll_messages_down();
         assert_eq!(state.message_scroll_offset, 1);
         state.scroll_messages_down();
-        assert_eq!(state.message_scroll_offset, 2);
-        state.scroll_messages_up();
         assert_eq!(state.message_scroll_offset, 1);
         state.scroll_messages_up();
         assert_eq!(state.message_scroll_offset, 0);

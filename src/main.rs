@@ -50,8 +50,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('q') => break,
                 KeyCode::Char('h') => app_state.switch_tab(),
                 KeyCode::Char('l') => app_state.switch_tab(),
-                KeyCode::Char('j') | KeyCode::Down => app_state.next_in_sidebar(),
-                KeyCode::Char('k') | KeyCode::Up => app_state.prev_in_sidebar(),
+                KeyCode::Char('j') | KeyCode::Down => {
+                    if app_state.active_tab == SidebarTab::Channels {
+                        app_state.scroll_messages_down();
+                    } else {
+                        app_state.next_in_sidebar();
+                    }
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    if app_state.active_tab == SidebarTab::Channels {
+                        app_state.scroll_messages_up();
+                    } else {
+                        app_state.prev_in_sidebar();
+                    }
+                }
                 KeyCode::Char(' ') => app_state.toggle_spawn_expansion(),
                 _ => {}
             }
@@ -182,11 +194,20 @@ fn render_right_pane(frame: &mut ratatui::Frame, app_state: &AppState, area: Rec
         "No channel selected".to_string()
     };
 
-    let items: Vec<ListItem> = app_state
+    let mut items: Vec<ListItem> = app_state
         .messages
         .iter()
         .rev()
-        .map(|msg| {
+        .enumerate()
+        .filter_map(|(idx, msg)| {
+            let scroll_pos = app_state.message_scroll_offset;
+            if idx >= scroll_pos && idx < scroll_pos + 100 {
+                Some((idx - scroll_pos, msg))
+            } else {
+                None
+            }
+        })
+        .map(|(_, msg)| {
             let timestamp = msg.created_at.get(11..19).unwrap_or("??:??:??");
             let agent_color = if msg.agent_id == "human" {
                 Color::Green
@@ -211,6 +232,13 @@ fn render_right_pane(frame: &mut ratatui::Frame, app_state: &AppState, area: Rec
             ListItem::new(line)
         })
         .collect();
+
+    if items.is_empty() {
+        items.push(ListItem::new(Span::styled(
+            "No messages",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
 
     let list = List::new(items)
         .block(
