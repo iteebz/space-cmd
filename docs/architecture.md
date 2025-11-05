@@ -4,16 +4,25 @@
 
 ## Vision
 
-Vertical split TUI: left sidebar (channels + spawns tabs), right pane (message stream), bottom input bar with autocomplete. Minimal, responsive, zealot-grade code.
+3-pane TUI command center: left sidebar (channels + spawns tabs), middle pane (channel message stream), right pane (live agent session stream), bottom input bar with autocomplete. Real-time agent observability with keyboard-driven navigation. Minimal, responsive, zealot-grade code.
 
 ## Core Design
 
 ### Data Flow
 ```
-Sidebar State → (h/l switch tabs, j/k focus) → Right Pane (messages or spawn logs)
+Sidebar State (CHANNELS/SPAWNS) → h/l switch, j/k navigate, Ctrl+j/k select spawn
+  ↓
+Middle Pane: Channel messages (polled from DB every 500ms)
+  ↓
+Right Pane: Live session stream (agent thinking, tool calls, results)
+  ↓
 Input Bar → (@agents, /files) → Autocomplete dropdown
+  ↓
 Submit → /bridge send general @hailot task → spawn execution
-Spawn runs → session_id linked → transcripts indexed → polling display
+  ↓
+Agent runs → session_id linked → JSONL events streamed to ~/.space/sessions/{provider}/{session_id}.jsonl
+  ↓
+Watcher polls JSONL → parses SessionMessage → renders SessionLine → displays in right pane (live)
 ```
 
 ### Database
@@ -26,31 +35,36 @@ Reads directly from `~/.space/space.db` (space-os owned):
 
 ## Module Structure
 
-**Guiding principle:** Single Responsibility. Each module <100 LOC.
+**Guiding principle:** Single Responsibility. Each module ≤225 LOC.
 
 ```
 src/
-├── main.rs              (107 LOC)  Event loop + keybinding dispatch
-├── lib.rs               (5 LOC)    Module exports
-├── schema.rs            (68 LOC)   Type definitions (Message, Channel, Agent, Spawn, Transcript)
-├── db.rs                (223 LOC)  SQLite queries + schema version check
-├── time.rs              (81 LOC)   ISO timestamp parsing & elapsed time formatting
+├── main.rs              (~120 LOC)  Event loop + keybinding dispatch
+├── lib.rs               (10 LOC)    Module exports
+├── schema.rs            (70 LOC)    Type definitions (Message, Channel, Agent, Spawn, Transcript)
+├── db.rs                (230 LOC)   SQLite queries + schema version check
+├── time.rs              (80 LOC)    ISO timestamp parsing & elapsed time formatting
+├── parser.rs            (110 LOC)   SessionMessage::parse() from JSONL lines
+├── watcher.rs           (120 LOC)   FileWatcher: poll JSONL files, detect changes
+├── session.rs           (140 LOC)   SessionRenderer: format SessionMessage → SessionLine
+├── diff.rs              (105 LOC)   DiffParser: unified diff parsing + ANSI coloring
 │
 ├── app/
-│   ├── mod.rs           (97 LOC)   AppState struct definition + new()
-│   ├── navigation.rs    (60 LOC)   switch_tab(), next/prev_in_sidebar(), toggle_spawn_expansion()
-│   ├── input.rs         (59 LOC)   add_char(), backspace(), history_prev/next(), submit_input()
-│   ├── autocomplete.rs  (116 LOC)  detect_and_trigger(), load_agent(), load_file(), filter(), next/prev/select/cancel()
-│   ├── unread.rs        (22 LOC)   mark_channel_read(), is_channel_unread()
-│   └── scroll.rs        (17 LOC)   scroll_messages_down/up(), reset_message_scroll()
+│   ├── mod.rs           (100 LOC)   AppState struct definition + new()
+│   ├── navigation.rs    (140 LOC)   spawn_global(), load_session_events(), session linking
+│   ├── input.rs         (60 LOC)    add_char(), backspace(), history_prev/next(), submit_input()
+│   ├── autocomplete.rs  (120 LOC)   detect_and_trigger(), load_agent(), load_file(), filter(), select/cancel()
+│   ├── unread.rs        (25 LOC)    mark_channel_read(), is_channel_unread()
+│   └── scroll.rs        (30 LOC)    scroll_messages/session_down/up(), reset_scroll()
 │
 └── ui/
-    ├── mod.rs           (32 LOC)   render_ui() entry point
-    ├── sidebar.rs       (134 LOC)  render_sidebar(), render_channels_list(), render_spawns_list()
-    ├── pane.rs          (74 LOC)   render_right_pane() + message formatting
-    └── input.rs         (66 LOC)   render_input_bar() + autocomplete dropdown
+    ├── mod.rs           (40 LOC)    render_ui() entry point + 3-pane layout
+    ├── sidebar.rs       (140 LOC)   render_sidebar(), render_channels_list(), render_spawns_list()
+    ├── channel.rs       (75 LOC)    render() channel messages + formatting
+    ├── session.rs       (70 LOC)    render() live session stream with SessionLine display
+    └── input.rs         (70 LOC)    render_input_bar() + autocomplete dropdown
 
-Total: 1,161 LOC (lean, no bloat)
+Total: ~2,500 LOC (lean, no bloat, all reference-grade)
 ```
 
 ## Key Features
@@ -72,6 +86,18 @@ Total: 1,161 LOC (lean, no bloat)
 - Elapsed time: parses ISO timestamp, displays as "2m3s", "45s", "1h2m"
 - Expand with `space` to show last 8 transcript lines inline
 - Format: `HH:MM:SS | content`
+- **Ctrl+j/k to select spawn** → right pane loads live session stream
+
+### Session Pane (New in Phase 3)
+- Displays live agent session events in real-time
+- Polls JSONL files from `~/.space/sessions/{provider}/{session_id}.jsonl`
+- **Event types rendered:**
+  - `message`: `HH:MM:SS | role: content` (user in cyan, assistant in green)
+  - `text`: `HH:MM:SS | [Response] content`
+  - `tool_call`: `HH:MM:SS | [Tool] name: input dict`
+  - `tool_result`: `HH:MM:SS | [Result] output` (red if error)
+- **Diff rendering**: Detects unified diffs, colors them (green=added, red=removed, cyan=headers)
+- **Scrolling**: j/k manual scroll, auto-scrolls to newest event
 
 ### Input Bar
 - Growing textbox (grows up to 5 visible lines)
@@ -88,12 +114,19 @@ Total: 1,161 LOC (lean, no bloat)
 
 ## Testing
 
-**29 tests total: 5 unit + 24 integration**
+**40+ tests total: unit + integration**
+
+### Unit Tests
+- **parser.rs**: SessionMessage parsing (message, tool_call, tool_result, text)
+- **session.rs**: SessionRenderer formatting (role coloring, timestamps, error detection)
+- **diff.rs**: DiffParser (unified diff detection, line classification, ANSI styling)
+- **time.rs**: Timestamp parsing & elapsed time formatting
 
 ### Integration Tests (tests/integration.rs)
 - **app_state**: tab switching, sidebar nav, spawn expansion, message scroll bounds
 - **input**: character accumulation, backspace, submit→history, history navigation
 - **autocomplete**: trigger detection, filtering, navigation, selection insertion
+- **spawn_selection**: Ctrl+j/k navigation, session loading, scroll reset
 
 Each test is short, declarative, covers a contract (not implementation).
 
@@ -102,36 +135,6 @@ Each test is short, declarative, covers a contract (not implementation).
 cargo test              # All tests
 cargo test --test integration  # Integration tests only
 ```
-
-## Implementation Phases
-
-### Phase 2 (COMPLETE)
-✅ Vertical split layout (25% sidebar, 75% pane)
-✅ CHANNELS tab with unread indicators
-✅ SPAWNS tab with elapsed time + inline transcripts
-✅ Message stream with scrolling
-✅ Input bar (growing textbox + history)
-✅ Autocomplete (@agents, /files)
-✅ 29 tests covering all core behaviors
-
-### Phase 3 (Deferred)
-- Full spawn trace modal (not just 8 lines)
-- Agent status grid (spawn counts, last activity)
-- Command mode (`:kill spawn_id`, `:pause agent`)
-- Keyword highlighting (errors, warnings)
-- Session search (FTS on transcripts)
-- Real-time spawn output streaming
-
-## Code Standards (Zealot)
-
-- ✅ No file > 225 LOC
-- ✅ Single responsibility per module
-- ✅ Zero clippy warnings
-- ✅ Zero naked `unwrap()` calls
-- ✅ Zero debug prints
-- ✅ 29 tests (coverage of contracts)
-- ✅ Idiomatic Rust (ratatui conventions, std patterns)
-- ✅ Production-ready (no technical debt)
 
 ## Development
 
@@ -153,7 +156,8 @@ just ci  # format, lint, test, build
 
 ## Notes
 
-- **No real steering yet** — Phase 2 focuses on observation and input UI. Actual bridge integration is Phase 3.
-- **Polling only** — 500ms loop reads from DB. No async/tokio. Same pattern as space-os Council MVP.
-- **Session sync deferred** — Phase 2 doesn't sync sessions. Spawn transcripts require `sessions sync` to have run beforehand.
-- **Scroll persistence** — Nice-to-have for Phase 3. Phase 2 resets on tab switch.
+- **Safe by default** — All writes go through `/bridge send` CLI (never direct DB mutations).
+- **Polling only** — 500ms loop reads from DB. No async/tokio. File watcher also polls. Same pattern as space-os.
+- **Session sync prerequisite** — Agent sessions must be synced first (`sessions sync` in space-os). space-cmd watches JSONL files for changes.
+- **JSONL streaming** — space-os writes events to JSONL as they happen. space-cmd polls the files, parses incrementally, renders live.
+- **No persistence** — Scroll position, selection state resets on restart. Okay for Phase 3. Can add session storage in Phase 4.

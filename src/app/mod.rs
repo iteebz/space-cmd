@@ -32,9 +32,7 @@ pub struct AppState {
 
     pub last_viewed_message_id: HashMap<String, String>,
 
-    #[allow(dead_code)]
     pub message_scroll_offset: usize,
-    #[allow(dead_code)]
     pub sidebar_scroll_offset: usize,
 
     pub session_events: Vec<crate::session::SessionLine>,

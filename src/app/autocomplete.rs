@@ -1,17 +1,19 @@
 use super::{AppState, AutocompleteMode};
 
 impl AppState {
+    fn last_word_start(&self) -> usize {
+        self.input_text
+            .rfind(|c: char| c.is_whitespace())
+            .map(|i| i + 1)
+            .unwrap_or(0)
+    }
+
     pub fn detect_and_trigger_autocomplete(&mut self) {
         if self.input_text.is_empty() {
             return;
         }
 
-        let last_word_start = self
-            .input_text
-            .rfind(|c: char| c.is_whitespace())
-            .map(|i| i + 1)
-            .unwrap_or(0);
-
+        let last_word_start = self.last_word_start();
         let last_word = &self.input_text[last_word_start..];
 
         if let Some(query) = last_word.strip_prefix('@') {
@@ -90,13 +92,8 @@ impl AppState {
             None => return,
         };
 
-        let last_word_start = self
-            .input_text
-            .rfind(|c: char| c.is_whitespace())
-            .map(|i| i + 1)
-            .unwrap_or(0);
-
-        self.input_text.truncate(last_word_start);
+        let start = self.last_word_start();
+        self.input_text.truncate(start);
         self.input_text.push_str(trigger);
         self.input_text.push_str(&selection);
         self.input_text.push(' ');

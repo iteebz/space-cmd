@@ -93,13 +93,10 @@ impl AppState {
         }
     }
 
-    fn load_session_lines(&self, session_id: &str) -> Vec<crate::session::SessionLine> {
-        use crate::parser::SessionMessage;
-        use crate::session::SessionRenderer;
-        use std::fs;
+    fn sessions_directory(&self) -> std::path::PathBuf {
         use std::path::PathBuf;
 
-        let sessions_dir = match std::env::var("SPACE_DB") {
+        match std::env::var("SPACE_DB") {
             Ok(db_path) => PathBuf::from(db_path)
                 .parent()
                 .map(|p| p.to_path_buf())
@@ -113,8 +110,15 @@ impl AppState {
                 "{}/.space/sessions",
                 std::env::var("HOME").unwrap_or_default()
             )),
-        };
+        }
+    }
 
+    fn load_session_lines(&self, session_id: &str) -> Vec<crate::session::SessionLine> {
+        use crate::parser::SessionMessage;
+        use crate::session::SessionRenderer;
+        use std::fs;
+
+        let sessions_dir = self.sessions_directory();
         let mut lines = Vec::new();
 
         if let Ok(entries) = fs::read_dir(&sessions_dir) {

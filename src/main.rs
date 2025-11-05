@@ -9,6 +9,26 @@ use space_cmd::db;
 use space_cmd::ui::render_ui;
 use std::{io, time::Duration};
 
+fn has_session_stream(app_state: &AppState) -> bool {
+    app_state.selected_spawn().is_some() && !app_state.session_events.is_empty()
+}
+
+fn handle_scroll_down(app_state: &mut AppState) {
+    if has_session_stream(app_state) {
+        app_state.scroll_session_down();
+    } else {
+        app_state.scroll_messages_down();
+    }
+}
+
+fn handle_scroll_up(app_state: &mut AppState) {
+    if has_session_stream(app_state) {
+        app_state.scroll_session_up();
+    } else {
+        app_state.scroll_messages_up();
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     db::check_schema_version().map_err(|e| format!("Schema check failed: {}", e))?;
 
@@ -53,26 +73,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 KeyCode::Char('j') => {
                     if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        if app_state.selected_spawn().is_some()
-                            && !app_state.session_events.is_empty()
-                        {
-                            app_state.scroll_session_down();
-                        } else {
-                            app_state.scroll_messages_down();
-                        }
+                        handle_scroll_down(&mut app_state);
                     } else {
                         app_state.next_in_sidebar();
                     }
                 }
                 KeyCode::Char('k') => {
                     if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        if app_state.selected_spawn().is_some()
-                            && !app_state.session_events.is_empty()
-                        {
-                            app_state.scroll_session_up();
-                        } else {
-                            app_state.scroll_messages_up();
-                        }
+                        handle_scroll_up(&mut app_state);
                     } else {
                         app_state.prev_in_sidebar();
                     }

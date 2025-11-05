@@ -8,6 +8,9 @@ use ratatui::{
 
 use crate::app::AppState;
 
+const TIME_SLICE_START: usize = 11;
+const TIME_SLICE_END: usize = 19;
+
 pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
     let title = if let Some(channel) = app_state.current_channel() {
         format!("Channel: {}", channel.name)
@@ -29,7 +32,10 @@ pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
             }
         })
         .map(|(_, msg)| {
-            let timestamp = msg.created_at.get(11..19).unwrap_or("??:??:??");
+            let timestamp = msg
+                .created_at
+                .get(TIME_SLICE_START..TIME_SLICE_END)
+                .unwrap_or("??:??:??");
             let agent_color = if msg.agent_id == "human" {
                 Color::Green
             } else {

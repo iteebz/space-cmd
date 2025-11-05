@@ -8,6 +8,10 @@ use ratatui::{
 use crate::app::{AppState, SidebarTab};
 use crate::time::format_elapsed_time;
 
+const SPAWN_ID_SHORT_LEN: usize = 7;
+const TIME_SLICE_START: usize = 11;
+const TIME_SLICE_END: usize = 19;
+
 pub fn render_sidebar(frame: &mut Frame, app_state: &AppState, area: Rect) {
     let tab_titles = vec!["CHANNELS", "SPAWNS"];
     let tab_index = match app_state.active_tab {
@@ -91,7 +95,7 @@ fn render_spawns_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
         };
 
         let elapsed = format_elapsed_time(&spawn.created_at);
-        let spawn_short = spawn.id.get(0..7).unwrap_or("?");
+        let spawn_short = spawn.id.get(0..SPAWN_ID_SHORT_LEN).unwrap_or("?");
         let name = format!(
             "{} {}{} ({})",
             indicator, status_style, spawn_short, elapsed
@@ -107,7 +111,10 @@ fn render_spawns_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
                     .iter()
                     .rev()
                     .map(|t| {
-                        let ts = t.timestamp.get(11..19).unwrap_or("??:??:??");
+                        let ts = t
+                            .timestamp
+                            .get(TIME_SLICE_START..TIME_SLICE_END)
+                            .unwrap_or("??:??:??");
                         format!("  {} | {}", ts, t.content)
                     })
                     .collect();
