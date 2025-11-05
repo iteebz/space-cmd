@@ -1,4 +1,4 @@
-use crate::schema::{Agent, Channel, Message};
+use crate::schema::{Agent, Channel, Message, Spawn};
 use rusqlite::{Connection, Result, params};
 use std::env;
 
@@ -118,6 +118,37 @@ pub fn get_agents() -> Result<Vec<Agent>> {
         .collect::<Result<Vec<_>>>()?;
 
     Ok(agents)
+}
+
+pub fn get_spawns() -> Result<Vec<Spawn>> {
+    let db_path = get_db_path();
+    let conn = Connection::open(db_path)?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, agent_id, session_id, channel_id, constitution_hash, is_task, status, pid, created_at, ended_at
+         FROM spawns
+         ORDER BY created_at DESC
+         LIMIT 100",
+    )?;
+
+    let spawns = stmt
+        .query_map([], |row| {
+            Ok(Spawn {
+                id: row.get(0)?,
+                agent_id: row.get(1)?,
+                session_id: row.get(2)?,
+                channel_id: row.get(3)?,
+                constitution_hash: row.get(4)?,
+                is_task: row.get::<_, i32>(5)? != 0,
+                status: row.get(6)?,
+                pid: row.get(7)?,
+                created_at: row.get(8)?,
+                ended_at: row.get(9)?,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(spawns)
 }
 
 #[cfg(test)]
