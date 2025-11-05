@@ -65,16 +65,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 KeyCode::Char(' ') => app_state.toggle_spawn_expansion(),
-                KeyCode::Char(ch) => app_state.add_char(ch),
-                KeyCode::Backspace => app_state.backspace(),
-                KeyCode::Enter => {
-                    let _ = app_state.submit_input();
+                KeyCode::Char(ch) => {
+                    app_state.add_char(ch);
+                    app_state.detect_and_trigger_autocomplete();
                 }
-                KeyCode::Up => app_state.history_prev(),
-                KeyCode::Down => app_state.history_next(),
+                KeyCode::Backspace => {
+                    app_state.backspace();
+                    if app_state.autocomplete_mode.is_some() {
+                        app_state.detect_and_trigger_autocomplete();
+                    }
+                }
+                KeyCode::Enter => {
+                    if app_state.autocomplete_mode.is_some() {
+                        app_state.autocomplete_select();
+                    } else {
+                        let _ = app_state.submit_input();
+                    }
+                }
+                KeyCode::Up => {
+                    if app_state.autocomplete_mode.is_some() {
+                        app_state.autocomplete_prev();
+                    } else {
+                        app_state.history_prev();
+                    }
+                }
+                KeyCode::Down => {
+                    if app_state.autocomplete_mode.is_some() {
+                        app_state.autocomplete_next();
+                    } else {
+                        app_state.history_next();
+                    }
+                }
                 KeyCode::Esc => {
-                    app_state.input_text.clear();
-                    app_state.history_idx = None;
+                    if app_state.autocomplete_mode.is_some() {
+                        app_state.cancel_autocomplete();
+                    } else {
+                        app_state.input_text.clear();
+                        app_state.history_idx = None;
+                    }
                 }
                 _ => {}
             }
@@ -298,6 +326,8 @@ fn render_right_pane(frame: &mut ratatui::Frame, app_state: &AppState, area: Rec
 }
 
 fn render_input_bar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
+    use app::AutocompleteMode;
+
     let prompt = "/bridge send general ";
     let text = format!("{}{}", prompt, app_state.input_text);
 
@@ -306,4 +336,50 @@ fn render_input_bar(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect
         .style(Style::default().fg(Color::Cyan));
 
     frame.render_widget(input, area);
+
+    if let Some(mode) = app_state.autocomplete_mode
+        && area.height > 1
+    {
+        let dropdown_area = Rect {
+            x: area.x,
+            y: area.y + 1,
+            width: area.width,
+            height: (area.height - 1).min(10),
+        };
+
+        let items: Vec<ListItem> = app_state
+            .autocomplete_list
+            .iter()
+            .enumerate()
+            .take(10)
+            .map(|(idx, item)| {
+                let prefix = if idx == app_state.autocomplete_idx {
+                    "➜ "
+                } else {
+                    "  "
+                };
+
+                let style = if idx == app_state.autocomplete_idx {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let label = match mode {
+                    AutocompleteMode::Agent => format!("⚡ {}", item),
+                    AutocompleteMode::File => format!("📄 {}", item),
+                };
+
+                ListItem::new(Span::styled(format!("{}{}", prefix, label), style))
+            })
+            .collect();
+
+        let list = List::new(items)
+            .block(Block::default().borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM))
+            .style(Style::default().fg(Color::White));
+
+        frame.render_widget(list, dropdown_area);
+    }
 }
