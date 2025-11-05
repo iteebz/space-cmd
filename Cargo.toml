@@ -1,7 +1,10 @@
 [package]
 name = "space-cmd"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
+description = "Command center for space agents"
+license = "Apache-2.0"
+repository = "https://github.com/iteebz/space-cmd"
 
 [dependencies]
 ratatui = "0.29"
