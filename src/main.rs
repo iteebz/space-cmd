@@ -158,24 +158,36 @@ fn render_channels_list(frame: &mut ratatui::Frame, app_state: &AppState, area: 
 }
 
 fn render_spawns_list(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
+    use crate::app::format_elapsed_time;
+
     let items: Vec<ListItem> = app_state
         .spawns
         .iter()
         .enumerate()
         .map(|(idx, spawn)| {
-            let indicator = if idx == app_state.active_spawn_idx {
-                ">"
-            } else {
-                " "
+            let is_focused = idx == app_state.active_spawn_idx;
+            let is_expanded = app_state.expanded_spawns.contains(&spawn.id);
+
+            let indicator = match (is_focused, is_expanded) {
+                (true, _) => ">",
+                (false, true) => "▾",
+                (false, false) => "▸",
             };
-            let status_short = spawn.status.get(0..1).unwrap_or("?").to_uppercase();
+
+            let status_style = match spawn.status.as_str() {
+                "running" => "R",
+                "paused" => "P",
+                "pending" => "W",
+                _ => "?",
+            };
+
+            let elapsed = format_elapsed_time(&spawn.created_at);
+            let spawn_short = spawn.id.get(0..7).unwrap_or("?");
             let name = format!(
-                "{} {}#{} ({})",
-                indicator,
-                status_short,
-                spawn.id.get(0..7).unwrap_or("?"),
-                spawn.status
+                "{} {}{} ({})",
+                indicator, status_style, spawn_short, elapsed
             );
+
             ListItem::new(name)
         })
         .collect();
