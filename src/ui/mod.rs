@@ -5,8 +5,9 @@ use ratatui::{
 
 use crate::app::AppState;
 
+mod channel;
 mod input;
-mod pane;
+mod session;
 mod sidebar;
 
 pub fn render_ui(frame: &mut Frame, app_state: &AppState) {
@@ -20,13 +21,19 @@ pub fn render_ui(frame: &mut Frame, app_state: &AppState) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(50),
+            Constraint::Percentage(25),
+        ])
         .split(content_area);
 
     let sidebar_area = horizontal[0];
-    let right_pane_area = horizontal[1];
+    let channel_area = horizontal[1];
+    let session_area = horizontal[2];
 
     sidebar::render_sidebar(frame, app_state, sidebar_area);
-    pane::render_right_pane(frame, app_state, right_pane_area);
+    channel::render(frame, app_state, channel_area);
+    session::render(frame, app_state, session_area);
     input::render_input_bar(frame, app_state, input_area);
 }

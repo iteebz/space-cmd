@@ -37,7 +37,7 @@ pub struct AppState {
     #[allow(dead_code)]
     pub sidebar_scroll_offset: usize,
 
-    pub session_events: Vec<crate::session::RenderedEvent>,
+    pub session_events: Vec<crate::session::SessionLine>,
     pub session_scroll_offset: usize,
 
     pub input_text: String,

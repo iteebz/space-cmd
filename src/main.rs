@@ -43,20 +43,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('l') => app_state.switch_tab(),
                 KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     app_state.next_spawn_global();
+                    app_state.load_session_events();
+                    app_state.reset_session_scroll();
                 }
                 KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     app_state.prev_spawn_global();
+                    app_state.load_session_events();
+                    app_state.reset_session_scroll();
                 }
                 KeyCode::Char('j') => {
                     if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        app_state.scroll_messages_down();
+                        if app_state.selected_spawn().is_some()
+                            && !app_state.session_events.is_empty()
+                        {
+                            app_state.scroll_session_down();
+                        } else {
+                            app_state.scroll_messages_down();
+                        }
                     } else {
                         app_state.next_in_sidebar();
                     }
                 }
                 KeyCode::Char('k') => {
                     if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        app_state.scroll_messages_up();
+                        if app_state.selected_spawn().is_some()
+                            && !app_state.session_events.is_empty()
+                        {
+                            app_state.scroll_session_up();
+                        } else {
+                            app_state.scroll_messages_up();
+                        }
                     } else {
                         app_state.prev_in_sidebar();
                     }

@@ -80,4 +80,64 @@ impl AppState {
     pub fn selected_spawn(&self) -> Option<&crate::schema::Spawn> {
         self.selected_spawn_idx.and_then(|idx| self.spawns.get(idx))
     }
+
+    pub fn load_session_events(&mut self) {
+        if let Some(spawn) = self.selected_spawn() {
+            if let Some(session_id) = &spawn.session_id {
+                self.session_events = self.load_session_lines(session_id);
+            } else {
+                self.session_events.clear();
+            }
+        } else {
+            self.session_events.clear();
+        }
+    }
+
+    fn load_session_lines(&self, session_id: &str) -> Vec<crate::session::SessionLine> {
+        use crate::parser::SessionMessage;
+        use crate::session::SessionRenderer;
+        use std::fs;
+        use std::path::PathBuf;
+
+        let sessions_dir = match std::env::var("SPACE_DB") {
+            Ok(db_path) => PathBuf::from(db_path)
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| {
+                    PathBuf::from(format!(
+                        "{}/.space",
+                        std::env::var("HOME").unwrap_or_default()
+                    ))
+                }),
+            Err(_) => PathBuf::from(format!(
+                "{}/.space/sessions",
+                std::env::var("HOME").unwrap_or_default()
+            )),
+        };
+
+        let mut lines = Vec::new();
+
+        if let Ok(entries) = fs::read_dir(&sessions_dir) {
+            for provider_dir in entries.filter_map(Result::ok) {
+                let path = provider_dir.path();
+                if !path.is_dir() {
+                    continue;
+                }
+
+                let session_path = path.join(format!("{}.jsonl", session_id));
+                if let Ok(content) = fs::read_to_string(&session_path) {
+                    for line in content.lines() {
+                        if !line.is_empty()
+                            && let Ok(msg) = SessionMessage::parse(line)
+                        {
+                            let rendered = SessionRenderer::render(&msg);
+                            lines.push(rendered);
+                        }
+                    }
+                }
+            }
+        }
+
+        lines
+    }
 }

@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 
-pub fn render_right_pane(frame: &mut Frame, app_state: &AppState, area: Rect) {
+pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
     let title = if let Some(channel) = app_state.current_channel() {
         format!("Channel: {}", channel.name)
     } else {
