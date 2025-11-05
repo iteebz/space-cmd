@@ -1,4 +1,5 @@
 mod db;
+mod schema;
 
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -37,13 +38,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         terminal.draw(|frame| {
             let area = frame.area();
 
-            // Convert messages to list items
+            // Convert messages to list items (newest at bottom)
             let items: Vec<ListItem> = messages
                 .iter()
+                .rev()
                 .map(|msg| {
                     let timestamp = msg.created_at.get(11..19).unwrap_or("??:??:??");
 
-                    // Color-code: agents = cyan, human = green
                     let agent_color = if msg.agent_id == "human" {
                         Color::Green
                     } else {
