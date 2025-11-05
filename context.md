@@ -1,11 +1,15 @@
 # Phase 2 Implementation: Multi-channel TUI with Spawn Monitoring
 
-## Current State
+## Current State (After Chunk 3a)
 - ✅ v0.0.1 shipped to crates.io
 - ✅ Schema types (Message, Channel, Agent, Spawn) defined
-- ✅ DB queries (get_channels, get_messages, get_agents)
+- ✅ DB queries (get_channels, get_messages, get_agents, get_spawns)
 - ✅ MVP: hardcoded "general" channel, 500ms polling, message rendering
 - ✅ UX spec locked (docs/ux.md)
+- ✅ Chunk 1: AppState + vertical split layout (CHANNELS/SPAWNS tabs)
+- ✅ Chunk 2a: Channel tab with unread indicators (● = new, > = focused)
+- ✅ Chunk 2b: Message stream with scroll support (j/k in CHANNELS tab)
+- ✅ Chunk 3a: Spawns tab with elapsed time (R/P/W status codes, ▸/▾ expand)
 
 ## Phase 2 Vision
 Vertical split TUI: left sidebar (channels + spawns tabs), right pane (message stream), bottom input bar with autocomplete.
@@ -262,13 +266,65 @@ Spawn runs → session_id linked → transcripts indexed → space-cmd polls →
 - End-to-end test
 - Tag release
 
+## Completed (Phase 2)
+
+### Layout & Navigation
+- ✅ Vertical split: 25% sidebar (left) + 75% message pane (right) + 1 line input bar (bottom)
+- ✅ Sidebar tabs: [CHANNELS] and [SPAWNS] with `h/l` toggle
+- ✅ Keybindings: `q` quit, `h/l` switch tabs, `j/k` context-aware (navigate sidebar in SPAWNS, scroll messages in CHANNELS), `space` toggle spawn expansion
+
+### Channels Tab
+- ✅ List all channels from channels table
+- ✅ Track `last_viewed_message_id` per channel (HashMap)
+- ✅ Unread indicator: `>` focused, `●` unread (new messages), ` ` read
+- ✅ Mark channel read on focus (clears unread indicator)
+
+### Message Stream
+- ✅ Fetch messages for focused channel from DB
+- ✅ Render with pagination: scroll offset controls view (100 messages visible at a time)
+- ✅ Format: `HH:MM:SS | agent_id (colored) > content`
+- ✅ Color-code: cyan=agents, green=human
+- ✅ Handle empty channels: show "No messages"
+- ✅ Scroll with j/k (when CHANNELS tab active)
+
+### Spawns Tab
+- ✅ List spawns from spawns table (most recent first)
+- ✅ Elapsed time calculation: parse ISO timestamp, display as "2m3s", "45s", "1h2m"
+- ✅ Status codes: R=running, P=paused, W=pending, ?=unknown
+- ✅ Indicators: `>` focused, `▾` expanded, `▸` collapsed
+- ✅ Format: `> Rabc12de (2m3s)` for focused running spawn
+
+## Remaining (Phase 2)
+
+### Chunk 3b: Inline Trace Dropdown
+- Expand spawns in sidebar to show transcript lines
+- Query transcripts table by session_id
+- Show last 8 lines of transcript (with elapsed time parsing)
+- Format: `HH:MM:SS | [action] content`
+
+### Chunk 4: Input Bar (Growing Textbox)
+- Growing textbox: grows to 5 visible lines, scrolls internally
+- Command history: `↑↓` to browse previous commands
+- Submit with `Enter`: store in history, send to bridge
+
+### Chunk 5: Autocomplete (@ and /)
+- `@` triggers agent dropdown (from agents table)
+- `/` triggers file dropdown (from ~/space/ directory)
+- Filter as you type, select with `↑↓` + `Enter`
+- Highlighted current selection
+
+### Chunk 6: Integration & Polish
+- Combine all pieces
+- End-to-end testing
+- Tag v0.1.0 (all 3 views working: channels, spawns, input)
+
 ## Success Criteria
 
 - ✅ Vertical split layout stable
 - ✅ Switch channels, see messages
-- ✅ List spawns, expand/collapse to see logs
-- ✅ Type commands, `@` shows agents, `/` shows files
-- ✅ Submit via `Enter`, command appears in history
+- ✅ List spawns with elapsed time, expand/collapse
+- ⏳ Type commands, `@` shows agents, `/` shows files
+- ⏳ Submit via `Enter`, command appears in history
 - ✅ No crashes, `q` quits cleanly
 - ✅ `just ci` passes
 

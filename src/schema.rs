@@ -55,3 +55,14 @@ pub struct Spawn {
     pub created_at: String,
     pub ended_at: Option<String>,
 }
+
+/// Transcript entry from agent session (transcripts table, FTS5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+pub struct Transcript {
+    pub session_id: String,
+    pub message_index: i32,
+    pub role: String,
+    pub content: String,
+    pub timestamp: String,
+}

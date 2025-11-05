@@ -160,37 +160,59 @@ fn render_channels_list(frame: &mut ratatui::Frame, app_state: &AppState, area: 
 fn render_spawns_list(frame: &mut ratatui::Frame, app_state: &AppState, area: Rect) {
     use crate::app::format_elapsed_time;
 
-    let items: Vec<ListItem> = app_state
-        .spawns
-        .iter()
-        .enumerate()
-        .map(|(idx, spawn)| {
-            let is_focused = idx == app_state.active_spawn_idx;
-            let is_expanded = app_state.expanded_spawns.contains(&spawn.id);
+    let mut items: Vec<ListItem> = Vec::new();
 
-            let indicator = match (is_focused, is_expanded) {
-                (true, _) => ">",
-                (false, true) => "▾",
-                (false, false) => "▸",
-            };
+    for (idx, spawn) in app_state.spawns.iter().enumerate() {
+        let is_focused = idx == app_state.active_spawn_idx;
+        let is_expanded = app_state.expanded_spawns.contains(&spawn.id);
 
-            let status_style = match spawn.status.as_str() {
-                "running" => "R",
-                "paused" => "P",
-                "pending" => "W",
-                _ => "?",
-            };
+        let indicator = match (is_focused, is_expanded) {
+            (true, _) => ">",
+            (false, true) => "▾",
+            (false, false) => "▸",
+        };
 
-            let elapsed = format_elapsed_time(&spawn.created_at);
-            let spawn_short = spawn.id.get(0..7).unwrap_or("?");
-            let name = format!(
-                "{} {}{} ({})",
-                indicator, status_style, spawn_short, elapsed
-            );
+        let status_style = match spawn.status.as_str() {
+            "running" => "R",
+            "paused" => "P",
+            "pending" => "W",
+            _ => "?",
+        };
 
-            ListItem::new(name)
-        })
-        .collect();
+        let elapsed = format_elapsed_time(&spawn.created_at);
+        let spawn_short = spawn.id.get(0..7).unwrap_or("?");
+        let name = format!(
+            "{} {}{} ({})",
+            indicator, status_style, spawn_short, elapsed
+        );
+
+        items.push(ListItem::new(name));
+
+        if is_expanded {
+            if let Some(session_id) = &spawn.session_id {
+                let transcripts = db::get_transcripts(session_id, 8).unwrap_or_else(|_| vec![]);
+                let mut transcript_lines: Vec<String> = transcripts
+                    .iter()
+                    .rev()
+                    .map(|t| {
+                        let ts = t.timestamp.get(11..19).unwrap_or("??:??:??");
+                        format!("  {} | {}", ts, t.content)
+                    })
+                    .collect();
+
+                let total_transcripts = transcripts.len();
+                if total_transcripts > 8 {
+                    transcript_lines.push(format!("  ...{} more", total_transcripts - 8));
+                }
+
+                for line in transcript_lines {
+                    items.push(ListItem::new(line));
+                }
+            } else {
+                items.push(ListItem::new("  (no session linked)"));
+            }
+        }
+    }
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))

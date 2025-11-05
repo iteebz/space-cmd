@@ -1,4 +1,4 @@
-use crate::schema::{Agent, Channel, Message, Spawn};
+use crate::schema::{Agent, Channel, Message, Spawn, Transcript};
 use rusqlite::{Connection, Result, params};
 use std::env;
 
@@ -149,6 +149,33 @@ pub fn get_spawns() -> Result<Vec<Spawn>> {
         .collect::<Result<Vec<_>>>()?;
 
     Ok(spawns)
+}
+
+pub fn get_transcripts(session_id: &str, limit: usize) -> Result<Vec<Transcript>> {
+    let db_path = get_db_path();
+    let conn = Connection::open(db_path)?;
+
+    let mut stmt = conn.prepare(
+        "SELECT session_id, message_index, role, content, timestamp
+         FROM transcripts
+         WHERE session_id = ?
+         ORDER BY message_index DESC
+         LIMIT ?",
+    )?;
+
+    let transcripts = stmt
+        .query_map(params![session_id, limit as i32], |row| {
+            Ok(Transcript {
+                session_id: row.get(0)?,
+                message_index: row.get(1)?,
+                role: row.get(2)?,
+                content: row.get(3)?,
+                timestamp: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(transcripts)
 }
 
 #[cfg(test)]
