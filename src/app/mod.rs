@@ -23,6 +23,7 @@ pub struct AppState {
     pub active_tab: SidebarTab,
     pub active_channel_idx: usize,
     pub active_spawn_idx: usize,
+    pub selected_spawn_idx: Option<usize>,
     pub expanded_spawns: HashSet<String>,
 
     pub channels: Vec<Channel>,
@@ -35,6 +36,9 @@ pub struct AppState {
     pub message_scroll_offset: usize,
     #[allow(dead_code)]
     pub sidebar_scroll_offset: usize,
+
+    pub session_events: Vec<crate::session::RenderedEvent>,
+    pub session_scroll_offset: usize,
 
     pub input_text: String,
     pub input_history: Vec<String>,
@@ -53,6 +57,7 @@ impl AppState {
             active_tab: SidebarTab::Channels,
             active_channel_idx: 0,
             active_spawn_idx: 0,
+            selected_spawn_idx: None,
             expanded_spawns: HashSet::new(),
 
             channels: vec![],
@@ -63,6 +68,9 @@ impl AppState {
 
             message_scroll_offset: 0,
             sidebar_scroll_offset: 0,
+
+            session_events: vec![],
+            session_scroll_offset: 0,
 
             input_text: String::new(),
             input_history: Vec::new(),

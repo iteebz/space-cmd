@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, KeyModifiers},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -41,6 +41,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('q') => break,
                 KeyCode::Char('h') => app_state.switch_tab(),
                 KeyCode::Char('l') => app_state.switch_tab(),
+                KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    app_state.next_spawn_global();
+                }
+                KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    app_state.prev_spawn_global();
+                }
                 KeyCode::Char('j') => {
                     if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
                         app_state.scroll_messages_down();
