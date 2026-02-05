@@ -69,12 +69,13 @@ fn format_activity_line<'a>(
 
 pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
     let count = app_state.activity.len();
+    let pause_tag = if app_state.paused { " ⏸" } else { "" };
     let title = if app_state.all_stream {
-        format!("Activity (all, {})", count)
+        format!("Activity (all, {}){}", count, pause_tag)
     } else if let Some(agent) = app_state.active_agent() {
-        format!("Activity ({}, {})", agent.identity, count)
+        format!("Activity ({}, {}){}", agent.identity, count, pause_tag)
     } else {
-        format!("Activity ({})", count)
+        format!("Activity ({}){}", count, pause_tag)
     };
 
     let items: Vec<ListItem> = app_state
