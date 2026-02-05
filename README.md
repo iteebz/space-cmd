@@ -28,7 +28,10 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 | `h/l` | Switch sidebar tabs (CHANNELS ↔ SPAWNS) |
 | `j/k` | Navigate (scroll channel messages or spawn list) |
 | `Ctrl+j/k` | Jump to next/prev spawn (global, select for pane #3) |
-| `space` | Toggle spawn expansion (show/hide inline transcripts) |
+| `space` | Pause/resume polling |
+| `a` | Toggle all-agents stream view |
+| `e` | Toggle spawn expansion (show/hide inline transcripts) |
+| `r` | Toggle session replay mode (pane #3) |
 | `↑↓` | History browse (when not in autocomplete) |
 | `@` | Agent autocomplete |
 | `/` | File autocomplete |

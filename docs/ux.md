@@ -87,7 +87,7 @@ User clicks spawn "hailot#7" in sidebar
 - **SPAWNS tab**: active spawns with elapsed time, expandable inline logs
   - `▸`: collapsed (single-line summary)
   - `▾`: expanded (shows last 8 transcript lines inline)
-  - Focus with `j/k` arrows, toggle with `space`
+  - Focus with `j/k` arrows, toggle with `e`
 
 ### Right Pane
 
@@ -117,7 +117,8 @@ Features:
 
 - `h/l`: cycle sidebar tabs (CHANNELS ↔ SPAWNS)
 - `j/k` or `↑↓`: move focus up/down in focused pane (sidebar or right pane)
-- `space`: toggle spawn expansion (show/hide inline logs)
+- `space`: pause/resume polling
+- `e`: toggle spawn expansion (show/hide inline logs)
 - Input bar: click or `TAB` from sidebar to focus input
 - `ESC`: clear input, unfocus dropdown, stay in sidebar
 - `q`: quit
@@ -150,7 +151,7 @@ Features:
 
 ### Spawn Trace Inspection (Inline Dropdown)
 
-Focus spawn in SPAWNS tab, press `space` → expands inline showing last 8 lines:
+Focus spawn in SPAWNS tab, press `e` → expands inline showing last 8 lines:
 
 ```
 ▾ sentinel#2 (45s)
@@ -164,7 +165,7 @@ Focus spawn in SPAWNS tab, press `space` → expands inline showing last 8 lines
 ```
 
 Shows last 8 lines of transcript (from transcripts table for that session_id).
-Scroll within expanded section or press `space` to collapse.
+Scroll within expanded section or press `e` to collapse.
 
 ## Data Flow: @mention to Visibility
 
@@ -206,10 +207,10 @@ Scroll within expanded section or press `space` to collapse.
 - Vertical split layout (sidebar + message pane)
 - CHANNELS tab: list channels, unread indicators (●)
 - SPAWNS tab: list running spawns, elapsed time, toggle with `h/l`
-- Spawn trace dropdown: focus spawn, `space` to expand, shows last 8 transcript lines
+- Spawn trace dropdown: focus spawn, `e` to expand, shows last 8 transcript lines
 - Message stream: scrollable, timestamps, agent coloring
 - Input bar: growing textbox, `/` file autocomplete, `@` agent autocomplete, `↑↓` history
-- Navigation: `h/l` sidebar tabs, `j/k` focus, `space` expand spawns, `q` quit
+- Navigation: `h/l` sidebar tabs, `j/k` focus, `a` all stream, `e` expand spawns, `r` replay, `q` quit
 
 ## Phase 3 (Advanced)
 

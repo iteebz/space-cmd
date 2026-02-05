@@ -72,7 +72,8 @@ Total: ~2,500 LOC (lean, no bloat, all reference-grade)
 ### Navigation
 - `h/l`: Switch sidebar tabs (CHANNELS ↔ SPAWNS)
 - `j/k`: Navigate within tab (context-aware: scroll messages in CHANNELS, move focus in SPAWNS)
-- `space`: Toggle spawn expansion (show/hide inline transcripts)
+- `space`: Pause/resume polling
+- `e`: Toggle spawn expansion (show/hide inline transcripts)
 - `q`: Quit
 
 ### Channels Tab
@@ -84,7 +85,7 @@ Total: ~2,500 LOC (lean, no bloat, all reference-grade)
 ### Spawns Tab
 - Lists spawns with status codes: R (running), P (paused), W (pending), ? (unknown)
 - Elapsed time: parses ISO timestamp, displays as "2m3s", "45s", "1h2m"
-- Expand with `space` to show last 8 transcript lines inline
+- Expand with `e` to show last 8 transcript lines inline
 - Format: `HH:MM:SS | content`
 - **Ctrl+j/k to select spawn** → right pane loads live session stream
 
