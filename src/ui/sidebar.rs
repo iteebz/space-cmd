@@ -8,14 +8,10 @@ use ratatui::{
 use crate::app::{AppState, SidebarTab};
 use crate::time::format_elapsed_time;
 
-const SPAWN_ID_SHORT_LEN: usize = 7;
-const TIME_SLICE_START: usize = 11;
-const TIME_SLICE_END: usize = 19;
-
 pub fn render_sidebar(frame: &mut Frame, app_state: &AppState, area: Rect) {
-    let tab_titles = vec!["CHANNELS", "SPAWNS"];
+    let tab_titles = vec!["AGENTS", "SPAWNS"];
     let tab_index = match app_state.active_tab {
-        SidebarTab::Channels => 0,
+        SidebarTab::Agents => 0,
         SidebarTab::Spawns => 1,
     };
 
@@ -40,29 +36,30 @@ pub fn render_sidebar(frame: &mut Frame, app_state: &AppState, area: Rect) {
     frame.render_widget(tabs_widget, inner_layout[0]);
 
     match app_state.active_tab {
-        SidebarTab::Channels => render_channels_list(frame, app_state, inner_layout[1]),
+        SidebarTab::Agents => render_agents_list(frame, app_state, inner_layout[1]),
         SidebarTab::Spawns => render_spawns_list(frame, app_state, inner_layout[1]),
     }
 }
 
-fn render_channels_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
+fn render_agents_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
     let items: Vec<ListItem> = app_state
-        .channels
+        .agents
         .iter()
         .enumerate()
-        .map(|(idx, ch)| {
-            let is_focused = idx == app_state.active_channel_idx;
-            let is_unread = app_state.is_channel_unread(&ch.channel_id);
-
-            let indicator = if is_focused {
+        .map(|(idx, agent)| {
+            let indicator = if idx == app_state.active_agent_idx {
                 ">"
-            } else if is_unread {
-                "●"
             } else {
                 " "
             };
 
-            let name = format!("{} {}", indicator, ch.name);
+            let type_icon = match agent.agent_type.as_str() {
+                "ai" => "~",
+                "human" => "*",
+                _ => "?",
+            };
+
+            let name = format!("{} {} {}", indicator, type_icon, agent.identity);
             ListItem::new(name)
         })
         .collect();
@@ -79,56 +76,45 @@ fn render_spawns_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
 
     for (idx, spawn) in app_state.spawns.iter().enumerate() {
         let is_focused = idx == app_state.active_spawn_idx;
+        let is_selected = app_state.selected_spawn_idx == Some(idx);
         let is_expanded = app_state.expanded_spawns.contains(&spawn.id);
 
-        let indicator = match (is_focused, is_expanded) {
-            (true, _) => ">",
-            (false, true) => "▾",
-            (false, false) => "▸",
+        let indicator = match (is_focused, is_selected, is_expanded) {
+            (_, true, _) => "*",
+            (true, _, _) => ">",
+            (_, _, true) => "v",
+            _ => " ",
         };
 
-        let status_style = match spawn.status.as_str() {
-            "running" => "R",
-            "paused" => "P",
-            "pending" => "W",
+        let status_icon = match spawn.status.as_str() {
+            "active" => "●",
+            "done" if spawn.error.is_some() => "x",
+            "done" => ".",
             _ => "?",
         };
 
         let elapsed = format_elapsed_time(&spawn.created_at);
-        let spawn_short = spawn.id.get(0..SPAWN_ID_SHORT_LEN).unwrap_or("?");
-        let name = format!(
-            "{} {}{} ({})",
-            indicator, status_style, spawn_short, elapsed
-        );
+        let identity = app_state.resolve_identity(&spawn.agent_id);
+        let name = format!("{} {} {} ({})", indicator, status_icon, identity, elapsed);
 
         items.push(ListItem::new(name));
 
         if is_expanded {
-            if let Some(session_id) = &spawn.session_id {
-                let transcripts =
-                    crate::db::get_transcripts(session_id, 8).unwrap_or_else(|_| vec![]);
-                let mut transcript_lines: Vec<String> = transcripts
-                    .iter()
-                    .rev()
-                    .map(|t| {
-                        let ts = t
-                            .timestamp
-                            .get(TIME_SLICE_START..TIME_SLICE_END)
-                            .unwrap_or("??:??:??");
-                        format!("  {} | {}", ts, t.content)
-                    })
-                    .collect();
-
-                let total_transcripts = transcripts.len();
-                if total_transcripts > 8 {
-                    transcript_lines.push(format!("  ...{} more", total_transcripts - 8));
-                }
-
-                for line in transcript_lines {
-                    items.push(ListItem::new(line));
-                }
-            } else {
-                items.push(ListItem::new("  (no session linked)"));
+            if let Some(summary) = &spawn.summary {
+                let truncated = if summary.len() > 40 {
+                    format!("  {}...", &summary[..37])
+                } else {
+                    format!("  {}", summary)
+                };
+                items.push(ListItem::new(truncated));
+            }
+            if let Some(error) = &spawn.error {
+                let truncated = if error.len() > 40 {
+                    format!("  err: {}...", &error[..34])
+                } else {
+                    format!("  err: {}", error)
+                };
+                items.push(ListItem::new(truncated));
             }
         }
     }

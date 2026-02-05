@@ -8,51 +8,72 @@ use ratatui::{
 
 use crate::app::AppState;
 
+const TIME_SLICE_START: usize = 11;
+const TIME_SLICE_END: usize = 19;
+
 pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
-    let title = if let Some(spawn) = app_state.selected_spawn() {
-        format!("Session: {}", spawn.id)
-    } else {
-        "No spawn selected".to_string()
+    let title = match app_state.selected_spawn() {
+        Some(spawn) => {
+            let identity = app_state.resolve_identity(&spawn.agent_id);
+            format!("Spawn: {} [{}]", identity, spawn.status)
+        }
+        None => "No spawn selected".to_string(),
     };
 
-    let mut items: Vec<ListItem> = app_state
-        .session_events
-        .iter()
-        .rev()
-        .enumerate()
-        .filter_map(|(idx, event)| {
-            let scroll_pos = app_state.session_scroll_offset;
-            if idx >= scroll_pos && idx < scroll_pos + 100 {
-                Some((idx - scroll_pos, event))
-            } else {
-                None
-            }
-        })
-        .map(|(_, event)| {
-            let header_style = if event.is_error {
-                Style::default().fg(Color::Red)
-            } else {
-                Style::default().fg(Color::Cyan)
-            };
-
-            let lines = vec![
-                Line::from(Span::styled(
-                    event.header.clone(),
-                    header_style.add_modifier(Modifier::BOLD),
-                )),
-                Line::from(Span::raw(format!("  {}", event.body))),
-            ];
-
-            ListItem::new(lines)
-        })
-        .collect();
-
-    if items.is_empty() {
-        items.push(ListItem::new(Span::styled(
-            "No events",
+    let items: Vec<ListItem> = if app_state.spawn_activity.is_empty() {
+        vec![ListItem::new(Span::styled(
+            "No activity",
             Style::default().fg(Color::DarkGray),
-        )));
-    }
+        ))]
+    } else {
+        app_state
+            .spawn_activity
+            .iter()
+            .skip(app_state.spawn_activity_scroll_offset)
+            .take(area.height.saturating_sub(2) as usize)
+            .map(|act| {
+                let timestamp = act
+                    .created_at
+                    .get(TIME_SLICE_START..TIME_SLICE_END)
+                    .unwrap_or("??:??:??");
+
+                let action_color = match act.action.as_str() {
+                    "created" => Color::Green,
+                    "started" => Color::Cyan,
+                    "completed" => Color::Blue,
+                    "failed" => Color::Red,
+                    "claimed" => Color::Yellow,
+                    _ => Color::White,
+                };
+
+                let detail = match act.after.as_deref() {
+                    Some(after) if after.len() > 50 => format!(" {}...", &after[..47]),
+                    Some(after) => format!(" {}", after),
+                    None => String::new(),
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(
+                        format!("{} ", timestamp),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!("{} ", act.primitive),
+                        Style::default().fg(Color::White),
+                    ),
+                    Span::styled(
+                        act.action.clone(),
+                        Style::default()
+                            .fg(action_color)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(detail, Style::default().fg(Color::DarkGray)),
+                ]);
+
+                ListItem::new(line)
+            })
+            .collect()
+    };
 
     let list = List::new(items)
         .block(

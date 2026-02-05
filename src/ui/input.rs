@@ -9,7 +9,13 @@ use ratatui::{
 use crate::app::{AppState, AutocompleteMode};
 
 pub fn render_input_bar(frame: &mut Frame, app_state: &AppState, area: Rect) {
-    let prompt = "/bridge send general ";
+    let prompt = if app_state.paused {
+        "[PAUSED] "
+    } else if app_state.all_stream {
+        "[ALL] "
+    } else {
+        "> "
+    };
     let text = format!("{}{}", prompt, app_state.input_text);
 
     let input = Paragraph::new(text)
@@ -35,7 +41,7 @@ pub fn render_input_bar(frame: &mut Frame, app_state: &AppState, area: Rect) {
             .take(10)
             .map(|(idx, item)| {
                 let prefix = if idx == app_state.autocomplete_idx {
-                    "➜ "
+                    "> "
                 } else {
                     "  "
                 };
@@ -49,8 +55,8 @@ pub fn render_input_bar(frame: &mut Frame, app_state: &AppState, area: Rect) {
                 };
 
                 let label = match mode {
-                    AutocompleteMode::Agent => format!("⚡ {}", item),
-                    AutocompleteMode::File => format!("📄 {}", item),
+                    AutocompleteMode::Agent => format!("@ {}", item),
+                    AutocompleteMode::File => format!("/ {}", item),
                 };
 
                 ListItem::new(Span::styled(format!("{}{}", prefix, label), style))

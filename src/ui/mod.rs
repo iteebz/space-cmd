@@ -5,7 +5,7 @@ use ratatui::{
 
 use crate::app::AppState;
 
-mod channel;
+mod activity;
 mod input;
 mod session;
 mod sidebar;
@@ -29,11 +29,11 @@ pub fn render_ui(frame: &mut Frame, app_state: &AppState) {
         .split(content_area);
 
     let sidebar_area = horizontal[0];
-    let channel_area = horizontal[1];
+    let activity_area = horizontal[1];
     let session_area = horizontal[2];
 
     sidebar::render_sidebar(frame, app_state, sidebar_area);
-    channel::render(frame, app_state, channel_area);
+    activity::render(frame, app_state, activity_area);
     session::render(frame, app_state, session_area);
     input::render_input_bar(frame, app_state, input_area);
 }
