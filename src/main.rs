@@ -4,24 +4,22 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use space_cmd::app::AppState;
+use space_cmd::app::{AppState, RightPane};
 use space_cmd::db;
 use space_cmd::ui::render_ui;
 use std::{io, time::Duration};
 
 fn handle_scroll_down(app_state: &mut AppState) {
-    if app_state.selected_spawn_idx.is_some() {
-        app_state.scroll_spawn_activity_down();
-    } else {
-        app_state.scroll_activity_down();
+    match app_state.right_pane {
+        RightPane::Stream => app_state.scroll_stream_down(),
+        RightPane::Ledger => app_state.scroll_ledger_down(),
     }
 }
 
 fn handle_scroll_up(app_state: &mut AppState) {
-    if app_state.selected_spawn_idx.is_some() {
-        app_state.scroll_spawn_activity_up();
-    } else {
-        app_state.scroll_activity_up();
+    match app_state.right_pane {
+        RightPane::Stream => app_state.scroll_stream_up(),
+        RightPane::Ledger => app_state.scroll_ledger_up(),
     }
 }
 
@@ -44,6 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         vec![]
     };
+    app_state.ledger = db::get_ledger_activity(500).unwrap_or_default();
+    app_state.stream = db::get_tail(200);
 
     loop {
         if !app_state.paused {
@@ -62,6 +62,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(spawn) = app_state.selected_spawn() {
                 app_state.spawn_activity =
                     db::get_spawn_activity(&spawn.id, 200).unwrap_or_default();
+            }
+
+            match app_state.right_pane {
+                RightPane::Stream => {
+                    app_state.stream = if app_state.all_stream {
+                        db::get_tail(200)
+                    } else if let Some(agent) = app_state.active_agent() {
+                        db::get_agent_tail(&agent.identity, 200)
+                    } else {
+                        db::get_tail(200)
+                    };
+                }
+                RightPane::Ledger => {
+                    app_state.ledger = db::get_ledger_activity(500).unwrap_or_default();
+                }
             }
 
             let active_count = app_state
@@ -105,6 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('K') => handle_scroll_up(&mut app_state),
                 KeyCode::Char(' ') => app_state.toggle_pause(),
                 KeyCode::Char('a') => app_state.toggle_all_stream(),
+                KeyCode::Char('d') => app_state.toggle_right_pane(),
                 KeyCode::Char('e') => app_state.toggle_spawn_expansion(),
                 KeyCode::Char(ch) if key.modifiers.contains(KeyModifiers::ALT) => {
                     app_state.focus_agent_by_initial(ch);

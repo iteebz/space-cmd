@@ -1,5 +1,11 @@
-use crate::schema::{Activity, Agent, DaemonStatus, Spawn};
+use crate::schema::{Activity, Agent, DaemonStatus, Spawn, TailEntry};
 use std::collections::{HashMap, HashSet};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RightPane {
+    Stream,
+    Ledger,
+}
 
 mod autocomplete;
 mod input;
@@ -21,6 +27,7 @@ pub enum AutocompleteMode {
 pub struct AppState {
     pub paused: bool,
     pub all_stream: bool,
+    pub right_pane: RightPane,
     pub active_tab: SidebarTab,
     pub active_agent_idx: usize,
     pub active_spawn_idx: usize,
@@ -31,12 +38,16 @@ pub struct AppState {
     pub spawns: Vec<Spawn>,
     pub activity: Vec<Activity>,
     pub spawn_activity: Vec<Activity>,
+    pub stream: Vec<TailEntry>,
+    pub ledger: Vec<Activity>,
     pub agent_identities: HashMap<String, String>,
     pub daemon: DaemonStatus,
 
     pub activity_scroll_offset: usize,
     pub sidebar_scroll_offset: usize,
     pub spawn_activity_scroll_offset: usize,
+    pub stream_scroll_offset: usize,
+    pub ledger_scroll_offset: usize,
 
     pub input_text: String,
     pub input_history: Vec<String>,
@@ -54,6 +65,7 @@ impl AppState {
         Self {
             paused: false,
             all_stream: false,
+            right_pane: RightPane::Stream,
             active_tab: SidebarTab::Spawns,
             active_agent_idx: 0,
             active_spawn_idx: 0,
@@ -64,12 +76,16 @@ impl AppState {
             spawns: vec![],
             activity: vec![],
             spawn_activity: vec![],
+            stream: vec![],
+            ledger: vec![],
             agent_identities: HashMap::new(),
             daemon: DaemonStatus::default(),
 
             activity_scroll_offset: 0,
             sidebar_scroll_offset: 0,
             spawn_activity_scroll_offset: 0,
+            stream_scroll_offset: 0,
+            ledger_scroll_offset: 0,
 
             input_text: String::new(),
             input_history: Vec::new(),
@@ -90,6 +106,7 @@ impl AppState {
     pub fn toggle_all_stream(&mut self) {
         self.all_stream = !self.all_stream;
         self.activity_scroll_offset = 0;
+        self.stream_scroll_offset = 0;
     }
 
     pub fn resolve_identity<'a>(&'a self, agent_id: &'a str) -> &'a str {

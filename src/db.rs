@@ -1,8 +1,9 @@
-use crate::schema::{Activity, Agent, DaemonStatus, Spawn};
+use crate::schema::{Activity, Agent, DaemonStatus, Spawn, TailEntry};
 use rusqlite::{Connection, Result, params};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 const MIN_SCHEMA_VERSION: i32 = 1;
@@ -156,6 +157,33 @@ pub fn get_agent_activity(agent_id: &str, limit: usize) -> Result<Vec<Activity>>
     .collect()
 }
 
+pub fn get_ledger_activity(limit: usize) -> Result<Vec<Activity>> {
+    let conn = Connection::open(get_db_path())?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, agent_id, spawn_id, primitive, primitive_id, action, field, after, created_at
+         FROM activity
+         WHERE primitive IN ('decision', 'insight', 'task')
+         ORDER BY created_at DESC
+         LIMIT ?",
+    )?;
+
+    stmt.query_map(params![limit as i32], |row| {
+        Ok(Activity {
+            id: row.get(0)?,
+            agent_id: row.get(1)?,
+            spawn_id: row.get(2)?,
+            primitive: row.get(3)?,
+            primitive_id: row.get(4)?,
+            action: row.get(5)?,
+            field: row.get(6)?,
+            after: row.get(7)?,
+            created_at: row.get(8)?,
+        })
+    })?
+    .collect()
+}
+
 pub fn get_spawn_activity(spawn_id: &str, limit: usize) -> Result<Vec<Activity>> {
     let conn = Connection::open(get_db_path())?;
 
@@ -211,6 +239,44 @@ pub fn get_daemon_status(active_count: usize) -> DaemonStatus {
         active_count,
         last_skip,
     }
+}
+
+pub fn get_tail(limit: usize) -> Vec<TailEntry> {
+    let root = dot_space();
+    let today = chrono::Utc::now().format("%Y%m%d").to_string();
+    let path = root.join("tail").join(format!("{}.jsonl", today));
+
+    let file = match fs::File::open(&path) {
+        Ok(f) => f,
+        Err(_) => return vec![],
+    };
+
+    let reader = BufReader::new(file);
+    let mut entries: Vec<TailEntry> = reader
+        .lines()
+        .map_while(Result::ok)
+        .filter_map(|line| serde_json::from_str(&line).ok())
+        .collect();
+
+    entries.reverse();
+    entries.truncate(limit);
+    entries
+}
+
+pub fn get_agent_tail(agent: &str, limit: usize) -> Vec<TailEntry> {
+    get_tail(limit * 4)
+        .into_iter()
+        .filter(|e| e.agent == agent)
+        .take(limit)
+        .collect()
+}
+
+pub fn get_spawn_tail(spawn_prefix: &str, limit: usize) -> Vec<TailEntry> {
+    get_tail(limit * 4)
+        .into_iter()
+        .filter(|e| e.spawn.starts_with(spawn_prefix))
+        .take(limit)
+        .collect()
 }
 
 #[cfg(test)]

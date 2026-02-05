@@ -2,6 +2,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
 };
 
@@ -41,7 +42,22 @@ pub fn render_sidebar(frame: &mut Frame, app_state: &AppState, area: Rect) {
     }
 }
 
+fn spawn_bar(active: usize, total: usize, width: usize) -> String {
+    if total == 0 {
+        return " ".repeat(width);
+    }
+    let filled = if active > 0 {
+        (active * width).div_ceil(total.max(1)).min(width).max(1)
+    } else {
+        0
+    };
+    let empty = width.saturating_sub(filled);
+    format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+}
+
 fn render_agents_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
+    let col_width = area.width.saturating_sub(2) as usize;
+
     let items: Vec<ListItem> = app_state
         .agents
         .iter()
@@ -59,8 +75,53 @@ fn render_agents_list(frame: &mut Frame, app_state: &AppState, area: Rect) {
                 _ => "?",
             };
 
-            let name = format!("{} {} {}", indicator, type_icon, agent.identity);
-            ListItem::new(name)
+            let active_spawns = app_state
+                .spawns
+                .iter()
+                .filter(|s| s.agent_id == agent.id && s.status == "active")
+                .count();
+            let total_spawns = app_state
+                .spawns
+                .iter()
+                .filter(|s| s.agent_id == agent.id)
+                .count();
+
+            let prefix = format!("{} {} {:10}", indicator, type_icon, agent.identity);
+            let bar_width = col_width.saturating_sub(prefix.len() + 6);
+
+            let suffix = if total_spawns > 0 {
+                format!(
+                    " {} {}/{}",
+                    spawn_bar(active_spawns, total_spawns, bar_width.min(4)),
+                    active_spawns,
+                    total_spawns
+                )
+            } else {
+                String::new()
+            };
+
+            let line = Line::from(vec![
+                Span::styled(
+                    prefix,
+                    if active_spawns > 0 {
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::White)
+                    },
+                ),
+                Span::styled(
+                    suffix,
+                    Style::default().fg(if active_spawns > 0 {
+                        Color::Green
+                    } else {
+                        Color::DarkGray
+                    }),
+                ),
+            ]);
+
+            ListItem::new(line)
         })
         .collect();
 

@@ -52,3 +52,15 @@ pub struct Activity {
     pub after: Option<String>,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TailEntry {
+    pub spawn: String,
+    pub agent: String,
+    #[serde(rename = "type")]
+    pub entry_type: String,
+    pub content: Option<String>,
+    pub name: Option<String>,
+    pub args: Option<String>,
+    pub ctx_pct: Option<u32>,
+}

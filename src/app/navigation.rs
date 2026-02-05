@@ -1,4 +1,4 @@
-use super::{AppState, SidebarTab};
+use super::{AppState, RightPane, SidebarTab};
 
 impl AppState {
     pub fn switch_tab(&mut self) {
@@ -87,6 +87,15 @@ impl AppState {
             self.spawn_activity.clear();
         }
         self.spawn_activity_scroll_offset = 0;
+    }
+
+    pub fn toggle_right_pane(&mut self) {
+        self.right_pane = match self.right_pane {
+            RightPane::Stream => RightPane::Ledger,
+            RightPane::Ledger => RightPane::Stream,
+        };
+        self.stream_scroll_offset = 0;
+        self.ledger_scroll_offset = 0;
     }
 
     pub fn focus_agent_by_initial(&mut self, ch: char) -> bool {

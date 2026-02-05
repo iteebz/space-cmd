@@ -3,13 +3,14 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 
-use crate::app::AppState;
+use crate::app::{AppState, RightPane};
 
 mod activity;
 mod input;
-mod session;
+mod ledger;
 mod sidebar;
 mod status;
+mod stream;
 
 pub fn render_ui(frame: &mut Frame, app_state: &AppState) {
     let main_layout = Layout::default()
@@ -36,11 +37,14 @@ pub fn render_ui(frame: &mut Frame, app_state: &AppState) {
 
     let sidebar_area = horizontal[0];
     let activity_area = horizontal[1];
-    let session_area = horizontal[2];
+    let right_area = horizontal[2];
 
     sidebar::render_sidebar(frame, app_state, sidebar_area);
     activity::render(frame, app_state, activity_area);
-    session::render(frame, app_state, session_area);
+    match app_state.right_pane {
+        RightPane::Stream => stream::render(frame, app_state, right_area),
+        RightPane::Ledger => ledger::render(frame, app_state, right_area),
+    }
     status::render(frame, app_state, status_area);
     input::render_input_bar(frame, app_state, input_area);
 }
