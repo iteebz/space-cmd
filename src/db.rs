@@ -1,15 +1,23 @@
-use crate::schema::{Activity, Agent, Spawn};
+use crate::schema::{Activity, Agent, DaemonStatus, Spawn};
 use rusqlite::{Connection, Result, params};
 use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::path::PathBuf;
 
 const MIN_SCHEMA_VERSION: i32 = 1;
 
+fn dot_space() -> PathBuf {
+    env::var("SPACE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = env::var("HOME").expect("HOME not set");
+            PathBuf::from(home).join(".space")
+        })
+}
+
 fn get_db_path() -> String {
-    env::var("SPACE_DB").unwrap_or_else(|_| {
-        let home = env::var("HOME").expect("HOME not set");
-        format!("{}/.space/space.db", home)
-    })
+    env::var("SPACE_DB").unwrap_or_else(|_| dot_space().join("space.db").to_string_lossy().into())
 }
 
 pub fn check_schema_version() -> Result<(), String> {
@@ -173,6 +181,36 @@ pub fn get_spawn_activity(spawn_id: &str, limit: usize) -> Result<Vec<Activity>>
         })
     })?
     .collect()
+}
+
+pub fn get_daemon_status(active_count: usize) -> DaemonStatus {
+    let root = dot_space();
+
+    let state: serde_yaml::Value = fs::read_to_string(root.join("state.yaml"))
+        .ok()
+        .and_then(|s| serde_yaml::from_str(&s).ok())
+        .unwrap_or(serde_yaml::Value::Mapping(Default::default()));
+
+    let config: serde_yaml::Value = fs::read_to_string(root.join("config.yaml"))
+        .ok()
+        .and_then(|s| serde_yaml::from_str(&s).ok())
+        .unwrap_or(serde_yaml::Value::Mapping(Default::default()));
+
+    let raw_pid = state["daemon_pid"].as_i64().map(|p| p as i32);
+    let running = raw_pid.is_some_and(|p| unsafe { libc::kill(p, 0) } == 0);
+
+    let enabled = config["swarm"]["enabled"].as_bool().unwrap_or(false);
+    let concurrency = config["swarm"]["concurrency"].as_i64().unwrap_or(2) as i32;
+    let last_skip = state["daemon_last_skip"].as_str().map(String::from);
+
+    DaemonStatus {
+        running,
+        pid: raw_pid,
+        enabled,
+        concurrency,
+        active_count,
+        last_skip,
+    }
 }
 
 #[cfg(test)]

@@ -63,6 +63,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 app_state.spawn_activity =
                     db::get_spawn_activity(&spawn.id, 200).unwrap_or_default();
             }
+
+            let active_count = app_state
+                .spawns
+                .iter()
+                .filter(|s| s.status == "active")
+                .count();
+            app_state.daemon = db::get_daemon_status(active_count);
         }
 
         terminal.draw(|frame| {

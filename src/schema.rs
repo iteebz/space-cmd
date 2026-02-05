@@ -1,5 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Default)]
+pub struct DaemonStatus {
+    pub running: bool,
+    pub pid: Option<i32>,
+    pub enabled: bool,
+    pub concurrency: i32,
+    pub active_count: usize,
+    pub last_skip: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct Agent {

@@ -1,4 +1,4 @@
-use crate::schema::{Activity, Agent, Spawn};
+use crate::schema::{Activity, Agent, DaemonStatus, Spawn};
 use std::collections::{HashMap, HashSet};
 
 mod autocomplete;
@@ -32,6 +32,7 @@ pub struct AppState {
     pub activity: Vec<Activity>,
     pub spawn_activity: Vec<Activity>,
     pub agent_identities: HashMap<String, String>,
+    pub daemon: DaemonStatus,
 
     pub activity_scroll_offset: usize,
     pub sidebar_scroll_offset: usize,
@@ -64,6 +65,7 @@ impl AppState {
             activity: vec![],
             spawn_activity: vec![],
             agent_identities: HashMap::new(),
+            daemon: DaemonStatus::default(),
 
             activity_scroll_offset: 0,
             sidebar_scroll_offset: 0,
