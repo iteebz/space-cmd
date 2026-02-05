@@ -65,7 +65,11 @@ pub fn get_agents() -> Result<Vec<Agent>> {
 pub fn get_agent_identities() -> Result<HashMap<String, String>> {
     let conn = Connection::open(get_db_path())?;
 
-    let mut stmt = conn.prepare("SELECT id, identity FROM agents")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, identity
+         FROM agents
+         WHERE archived_at IS NULL AND deleted_at IS NULL",
+    )?;
 
     let pairs: Vec<(String, String)> = stmt
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
