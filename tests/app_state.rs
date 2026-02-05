@@ -1,64 +1,63 @@
 use space_cmd::app::{AppState, SidebarTab};
-use space_cmd::schema::{Channel, Message, Spawn};
+use space_cmd::schema::{Activity, Agent, Spawn};
 
 #[test]
-fn focus_channel_marks_read() {
+fn tab_switch_toggles_agents_spawns() {
     let mut state = AppState::new();
-    state.channels = vec![Channel {
-        channel_id: "ch1".to_string(),
-        name: "general".to_string(),
-        topic: None,
-        created_at: "2025-11-05T10:00:00Z".to_string(),
-        pinned_at: None,
-    }];
-    state.messages = vec![Message {
-        message_id: "m1".to_string(),
-        channel_id: "ch1".to_string(),
-        agent_id: "hailot".to_string(),
-        content: "hello".to_string(),
-        created_at: "2025-11-05T10:00:00Z".to_string(),
-    }];
-
-    assert!(state.is_channel_unread("ch1"));
-    state.mark_channel_read();
-    assert!(!state.is_channel_unread("ch1"));
+    assert_eq!(state.active_tab, SidebarTab::Spawns);
+    state.switch_tab();
+    assert_eq!(state.active_tab, SidebarTab::Agents);
+    state.switch_tab();
+    assert_eq!(state.active_tab, SidebarTab::Spawns);
 }
 
 #[test]
-fn sidebar_navigation_wraps_around() {
+fn sidebar_navigation_wraps_around_agents() {
     let mut state = AppState::new();
-    state.channels = vec![
-        Channel {
-            channel_id: "ch1".to_string(),
-            name: "general".to_string(),
-            topic: None,
-            created_at: "2025-11-05T10:00:00Z".to_string(),
-            pinned_at: None,
+    state.active_tab = SidebarTab::Agents;
+    state.agents = vec![
+        Agent {
+            id: "a1".to_string(),
+            identity: "alpha".to_string(),
+            agent_type: "ai".to_string(),
+            model: None,
+            created_at: "2026-02-05T10:00:00Z".to_string(),
+            archived_at: None,
         },
-        Channel {
-            channel_id: "ch2".to_string(),
-            name: "tasks".to_string(),
-            topic: None,
-            created_at: "2025-11-05T10:01:00Z".to_string(),
-            pinned_at: None,
+        Agent {
+            id: "a2".to_string(),
+            identity: "beta".to_string(),
+            agent_type: "ai".to_string(),
+            model: None,
+            created_at: "2026-02-05T10:01:00Z".to_string(),
+            archived_at: None,
         },
     ];
 
-    assert_eq!(state.active_channel_idx, 0);
+    assert_eq!(state.active_agent_idx, 0);
     state.next_in_sidebar();
-    assert_eq!(state.active_channel_idx, 1);
+    assert_eq!(state.active_agent_idx, 1);
     state.next_in_sidebar();
-    assert_eq!(state.active_channel_idx, 0);
+    assert_eq!(state.active_agent_idx, 0);
 }
 
 #[test]
-fn tab_switch_toggles_channels_spawns() {
+fn pause_toggle_flips_state() {
     let mut state = AppState::new();
-    assert_eq!(state.active_tab, SidebarTab::Channels);
-    state.switch_tab();
-    assert_eq!(state.active_tab, SidebarTab::Spawns);
-    state.switch_tab();
-    assert_eq!(state.active_tab, SidebarTab::Channels);
+    assert!(!state.paused);
+    state.toggle_pause();
+    assert!(state.paused);
+    state.toggle_pause();
+    assert!(!state.paused);
+}
+
+#[test]
+fn all_stream_toggle_resets_activity_scroll() {
+    let mut state = AppState::new();
+    state.activity_scroll_offset = 10;
+    state.toggle_all_stream();
+    assert!(state.all_stream);
+    assert_eq!(state.activity_scroll_offset, 0);
 }
 
 #[test]
@@ -66,17 +65,19 @@ fn spawn_expansion_toggle() {
     let mut state = AppState::new();
     state.spawns = vec![Spawn {
         id: "spawn1".to_string(),
-        agent_id: "hailot".to_string(),
-        session_id: Some("sess123".to_string()),
-        channel_id: None,
-        constitution_hash: None,
-        is_task: false,
-        status: "running".to_string(),
+        agent_id: "a1".to_string(),
+        project_id: None,
+        caller_spawn_id: None,
+        source: Some("manual".to_string()),
+        status: "active".to_string(),
+        error: None,
         pid: Some(1234),
-        created_at: "2025-11-05T10:00:00Z".to_string(),
-        ended_at: None,
+        session_id: Some("sess123".to_string()),
+        summary: None,
+        created_at: "2026-02-05T10:00:00Z".to_string(),
+        last_active_at: None,
+        resume_count: 0,
     }];
-    state.active_tab = SidebarTab::Spawns;
 
     assert!(!state.expanded_spawns.contains("spawn1"));
     state.toggle_spawn_expansion();
@@ -84,44 +85,40 @@ fn spawn_expansion_toggle() {
 }
 
 #[test]
-fn message_scroll_respects_bounds() {
+fn activity_scroll_respects_bounds() {
     let mut state = AppState::new();
-    state.messages = vec![
-        Message {
-            message_id: "m1".to_string(),
-            channel_id: "ch1".to_string(),
-            agent_id: "hailot".to_string(),
-            content: "msg1".to_string(),
-            created_at: "2025-11-05T10:00:00Z".to_string(),
+    state.activity = vec![
+        Activity {
+            id: 1,
+            agent_id: "a1".to_string(),
+            spawn_id: None,
+            primitive: "spawn".to_string(),
+            primitive_id: "s1".to_string(),
+            action: "created".to_string(),
+            field: None,
+            after: None,
+            created_at: "2026-02-05T10:00:00Z".to_string(),
         },
-        Message {
-            message_id: "m2".to_string(),
-            channel_id: "ch1".to_string(),
-            agent_id: "hailot".to_string(),
-            content: "msg2".to_string(),
-            created_at: "2025-11-05T10:01:00Z".to_string(),
-        },
-        Message {
-            message_id: "m3".to_string(),
-            channel_id: "ch1".to_string(),
-            agent_id: "hailot".to_string(),
-            content: "msg3".to_string(),
-            created_at: "2025-11-05T10:02:00Z".to_string(),
+        Activity {
+            id: 2,
+            agent_id: "a1".to_string(),
+            spawn_id: None,
+            primitive: "spawn".to_string(),
+            primitive_id: "s1".to_string(),
+            action: "started".to_string(),
+            field: None,
+            after: None,
+            created_at: "2026-02-05T10:00:01Z".to_string(),
         },
     ];
 
-    assert_eq!(state.message_scroll_offset, 0);
-    state.scroll_messages_down();
-    assert_eq!(state.message_scroll_offset, 1);
-    state.scroll_messages_down();
-    assert_eq!(state.message_scroll_offset, 2);
-    state.scroll_messages_down();
-    assert_eq!(state.message_scroll_offset, 2);
-
-    state.scroll_messages_up();
-    assert_eq!(state.message_scroll_offset, 1);
-    state.scroll_messages_up();
-    assert_eq!(state.message_scroll_offset, 0);
-    state.scroll_messages_up();
-    assert_eq!(state.message_scroll_offset, 0);
+    assert_eq!(state.activity_scroll_offset, 0);
+    state.scroll_activity_down();
+    assert_eq!(state.activity_scroll_offset, 1);
+    state.scroll_activity_down();
+    assert_eq!(state.activity_scroll_offset, 1);
+    state.scroll_activity_up();
+    assert_eq!(state.activity_scroll_offset, 0);
+    state.scroll_activity_up();
+    assert_eq!(state.activity_scroll_offset, 0);
 }

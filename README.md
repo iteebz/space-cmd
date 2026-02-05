@@ -8,7 +8,7 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 - Reads from `~/.space/space.db` (space-os SQLite bridge)
 - Streams session events from `~/.space/sessions/{provider}/{session_id}.jsonl`
 - Polls agent activity every 500ms
-- **3-pane layout**: CHANNELS/SPAWNS sidebar (25%) | Channel messages (50%) | Live session stream (25%)
+- **3-pane layout**: AGENTS/SPAWNS sidebar (25%) | Activity stream (50%) | Spawn activity (25%)
 - **Live agent execution visibility**: See agent thinking, tool calls, results in real-time
 - **Keyboard-driven**: No mouse needed, vim keybindings (h/l/j/k)
 - **Input bar**: Send steering commands with autocomplete (@agents, /files)
@@ -25,13 +25,13 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 | Key | Action |
 |-----|--------|
 | `q` | Quit |
-| `h/l` | Switch sidebar tabs (CHANNELS ↔ SPAWNS) |
-| `j/k` | Navigate (scroll channel messages or spawn list) |
-| `Ctrl+j/k` | Jump to next/prev spawn (global, select for pane #3) |
+| `h/l` | Switch sidebar tabs (AGENTS ↔ SPAWNS) |
+| `j/k` | Navigate sidebar list |
+| `J/K` | Scroll activity pane |
+| `Ctrl+j/k` | Jump to next/prev spawn (select for pane #3) |
 | `space` | Pause/resume polling |
 | `a` | Toggle all-agents stream view |
 | `e` | Toggle spawn expansion (show/hide inline transcripts) |
-| `r` | Toggle session replay mode (pane #3) |
 | `↑↓` | History browse (when not in autocomplete) |
 | `@` | Agent autocomplete |
 | `/` | File autocomplete |

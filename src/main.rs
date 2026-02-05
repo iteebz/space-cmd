@@ -9,23 +9,19 @@ use space_cmd::db;
 use space_cmd::ui::render_ui;
 use std::{io, time::Duration};
 
-fn has_session_stream(app_state: &AppState) -> bool {
-    app_state.selected_spawn().is_some() && !app_state.session_events.is_empty()
-}
-
 fn handle_scroll_down(app_state: &mut AppState) {
-    if has_session_stream(app_state) {
-        app_state.scroll_session_down();
+    if app_state.selected_spawn_idx.is_some() {
+        app_state.scroll_spawn_activity_down();
     } else {
-        app_state.scroll_messages_down();
+        app_state.scroll_activity_down();
     }
 }
 
 fn handle_scroll_up(app_state: &mut AppState) {
-    if has_session_stream(app_state) {
-        app_state.scroll_session_up();
+    if app_state.selected_spawn_idx.is_some() {
+        app_state.scroll_spawn_activity_up();
     } else {
-        app_state.scroll_messages_up();
+        app_state.scroll_activity_up();
     }
 }
 
@@ -40,14 +36,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut app_state = AppState::new();
 
-    app_state.channels = db::get_channels().unwrap_or_else(|_| vec![]);
-    app_state.spawns = db::get_spawns().unwrap_or_else(|_| vec![]);
+    app_state.agents = db::get_agents().unwrap_or_default();
+    app_state.spawns = db::get_spawns().unwrap_or_default();
+    app_state.agent_identities = db::get_agent_identities().unwrap_or_default();
+    app_state.activity = if let Some(agent) = app_state.active_agent() {
+        db::get_agent_activity(&agent.id, 500).unwrap_or_default()
+    } else {
+        vec![]
+    };
 
     loop {
-        if let Some(channel) = app_state.current_channel() {
-            app_state.messages =
-                db::get_channel_messages(&channel.channel_id).unwrap_or_else(|_| vec![]);
-            app_state.mark_channel_read();
+        if !app_state.paused {
+            app_state.agents = db::get_agents().unwrap_or_default();
+            app_state.spawns = db::get_spawns().unwrap_or_default();
+            app_state.agent_identities = db::get_agent_identities().unwrap_or_default();
+
+            app_state.activity = if app_state.all_stream {
+                db::get_activity(500).unwrap_or_default()
+            } else if let Some(agent) = app_state.active_agent() {
+                db::get_agent_activity(&agent.id, 500).unwrap_or_default()
+            } else {
+                vec![]
+            };
+
+            if let Some(spawn) = app_state.selected_spawn() {
+                app_state.spawn_activity =
+                    db::get_spawn_activity(&spawn.id, 200).unwrap_or_default();
+            }
         }
 
         terminal.draw(|frame| {
@@ -63,29 +78,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('l') => app_state.switch_tab(),
                 KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     app_state.next_spawn_global();
-                    app_state.load_session_events();
-                    app_state.reset_session_scroll();
                 }
                 KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     app_state.prev_spawn_global();
-                    app_state.load_session_events();
-                    app_state.reset_session_scroll();
                 }
                 KeyCode::Char('j') => {
-                    if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        handle_scroll_down(&mut app_state);
-                    } else {
-                        app_state.next_in_sidebar();
+                    app_state.next_in_sidebar();
+                    if !app_state.all_stream {
+                        app_state.activity_scroll_offset = 0;
                     }
                 }
                 KeyCode::Char('k') => {
-                    if app_state.active_tab == space_cmd::app::SidebarTab::Channels {
-                        handle_scroll_up(&mut app_state);
-                    } else {
-                        app_state.prev_in_sidebar();
+                    app_state.prev_in_sidebar();
+                    if !app_state.all_stream {
+                        app_state.activity_scroll_offset = 0;
                     }
                 }
-                KeyCode::Char(' ') => app_state.toggle_spawn_expansion(),
+                KeyCode::Char('J') => handle_scroll_down(&mut app_state),
+                KeyCode::Char('K') => handle_scroll_up(&mut app_state),
+                KeyCode::Char(' ') => app_state.toggle_pause(),
+                KeyCode::Char('a') => app_state.toggle_all_stream(),
+                KeyCode::Char('e') => app_state.toggle_spawn_expansion(),
                 KeyCode::Char(ch) => {
                     app_state.add_char(ch);
                     app_state.detect_and_trigger_autocomplete();
