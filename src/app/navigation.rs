@@ -88,4 +88,22 @@ impl AppState {
         }
         self.spawn_activity_scroll_offset = 0;
     }
+
+    pub fn focus_agent_by_initial(&mut self, ch: char) -> bool {
+        let ch_lower = ch.to_ascii_lowercase();
+        if let Some(idx) = self
+            .agents
+            .iter()
+            .position(|a| a.identity.starts_with(ch_lower))
+        {
+            self.active_tab = SidebarTab::Agents;
+            self.active_agent_idx = idx;
+            self.all_stream = false;
+            self.activity_scroll_offset = 0;
+            self.sidebar_scroll_offset = 0;
+            true
+        } else {
+            false
+        }
+    }
 }

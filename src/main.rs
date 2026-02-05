@@ -99,6 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char(' ') => app_state.toggle_pause(),
                 KeyCode::Char('a') => app_state.toggle_all_stream(),
                 KeyCode::Char('e') => app_state.toggle_spawn_expansion(),
+                KeyCode::Char(ch) if key.modifiers.contains(KeyModifiers::ALT) => {
+                    app_state.focus_agent_by_initial(ch);
+                }
                 KeyCode::Char(ch) => {
                     app_state.add_char(ch);
                     app_state.detect_and_trigger_autocomplete();
