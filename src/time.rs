@@ -73,9 +73,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn format_seconds() {
-        let ts = "2025-11-05T21:50:00Z";
-        let formatted = format_elapsed_time(ts);
+    fn format_recent_timestamp() {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let recent = now - 30;
+        let year = 1970 + (recent / 31536000) as i32;
+        let formatted = format_elapsed_time(&format!("{}-01-01T00:00:{}Z", year, recent % 60));
+        assert!(!formatted.is_empty());
+    }
+
+    #[test]
+    fn format_elapsed_under_minute() {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let ts = chrono::DateTime::from_timestamp(now_secs as i64 - 30, 0)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string();
+        let formatted = format_elapsed_time(&ts);
         assert!(formatted.ends_with('s'));
+        assert!(!formatted.contains('m'));
+    }
+
+    #[test]
+    fn format_elapsed_minutes() {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let ts = chrono::DateTime::from_timestamp(now_secs as i64 - 90, 0)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string();
+        let formatted = format_elapsed_time(&ts);
+        assert!(formatted.contains('m'));
+    }
+
+    #[test]
+    fn format_elapsed_hours() {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let ts = chrono::DateTime::from_timestamp(now_secs as i64 - 7200, 0)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string();
+        let formatted = format_elapsed_time(&ts);
+        assert!(formatted.contains('h'));
     }
 }

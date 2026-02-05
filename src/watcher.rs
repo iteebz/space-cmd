@@ -61,8 +61,10 @@ impl FileWatcher {
                     let size = metadata.len();
                     let last_size = self.tracked_files.get(&session_path).copied();
 
-                    if last_size.is_some() && Some(size) != last_size {
-                        self.read_new_lines(&session_path, last_size.unwrap(), &provider)?;
+                    if let Some(prev_size) = last_size
+                        && size != prev_size
+                    {
+                        self.read_new_lines(&session_path, prev_size, &provider)?;
                     }
 
                     self.tracked_files.insert(session_path, size);
