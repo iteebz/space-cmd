@@ -31,7 +31,7 @@ impl AppState {
 
     pub fn load_agent_autocomplete(&mut self) {
         if let Ok(agents) = crate::db::get_agents() {
-            self.autocomplete_list = agents.iter().map(|a| a.agent_id.clone()).collect();
+            self.autocomplete_list = agents.iter().map(|a| a.identity.clone()).collect();
             self.filter_autocomplete();
         }
     }
