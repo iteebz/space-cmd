@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::AppState;
+use crate::source::Mode;
 use crate::time::format_elapsed_time;
 
 pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
@@ -45,6 +46,13 @@ pub fn render(frame: &mut Frame, app_state: &AppState, area: Rect) {
         ),
         Span::styled(slots, Style::default().fg(Color::Cyan)),
         Span::styled(skip_text, Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            match app_state.source_mode {
+                Mode::Api => " [API]",
+                Mode::Db => " [DB]",
+            },
+            Style::default().fg(Color::DarkGray),
+        ),
     ]);
 
     let widget = Paragraph::new(line).style(Style::default().fg(Color::White));

@@ -5,7 +5,7 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 use space_cmd::app::{AppState, RightPane};
-use space_cmd::db;
+use space_cmd::source::Source;
 use space_cmd::ui::render_ui;
 use std::{io, time::Duration};
 
@@ -24,7 +24,7 @@ fn handle_scroll_up(app_state: &mut AppState) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    db::check_schema_version().map_err(|e| format!("Schema check failed: {}", e))?;
+    let src = Source::connect();
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -33,49 +33,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app_state = AppState::new();
+    app_state.source_mode = src.mode;
 
-    app_state.agents = db::get_agents().unwrap_or_default();
-    app_state.spawns = db::get_spawns().unwrap_or_default();
-    app_state.agent_identities = db::get_agent_identities().unwrap_or_default();
+    app_state.agents = src.get_agents();
+    app_state.spawns = src.get_spawns();
+    app_state.agent_identities = src.get_agent_identities();
     app_state.activity = if let Some(agent) = app_state.active_agent() {
-        db::get_agent_activity(&agent.id, 500).unwrap_or_default()
+        src.get_agent_activity(&agent.id, 500)
     } else {
         vec![]
     };
-    app_state.ledger = db::get_ledger_activity(500).unwrap_or_default();
-    app_state.stream = db::get_tail(200);
+    app_state.ledger = src.get_ledger_activity(500);
+    app_state.stream = src.get_tail(200);
 
     loop {
         if !app_state.paused {
-            app_state.agents = db::get_agents().unwrap_or_default();
-            app_state.spawns = db::get_spawns().unwrap_or_default();
-            app_state.agent_identities = db::get_agent_identities().unwrap_or_default();
+            app_state.agents = src.get_agents();
+            app_state.spawns = src.get_spawns();
+            app_state.agent_identities = src.get_agent_identities();
 
             app_state.activity = if app_state.all_stream {
-                db::get_activity(500).unwrap_or_default()
+                src.get_activity(500)
             } else if let Some(agent) = app_state.active_agent() {
-                db::get_agent_activity(&agent.id, 500).unwrap_or_default()
+                src.get_agent_activity(&agent.id, 500)
             } else {
                 vec![]
             };
 
             if let Some(spawn) = app_state.selected_spawn() {
-                app_state.spawn_activity =
-                    db::get_spawn_activity(&spawn.id, 200).unwrap_or_default();
+                app_state.spawn_activity = src.get_spawn_activity(&spawn.id, 200);
             }
 
             match app_state.right_pane {
                 RightPane::Stream => {
                     app_state.stream = if app_state.all_stream {
-                        db::get_tail(200)
+                        src.get_tail(200)
                     } else if let Some(agent) = app_state.active_agent() {
-                        db::get_agent_tail(&agent.identity, 200)
+                        src.get_agent_tail(&agent.identity, 200)
                     } else {
-                        db::get_tail(200)
+                        src.get_tail(200)
                     };
                 }
                 RightPane::Ledger => {
-                    app_state.ledger = db::get_ledger_activity(500).unwrap_or_default();
+                    app_state.ledger = src.get_ledger_activity(500);
                 }
             }
 
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .iter()
                 .filter(|s| s.status == "active")
                 .count();
-            app_state.daemon = db::get_daemon_status(active_count);
+            app_state.daemon = src.get_daemon_status(active_count);
         }
 
         terminal.draw(|frame| {

@@ -43,7 +43,7 @@ pub fn get_agents() -> Result<Vec<Agent>> {
     let conn = Connection::open(get_db_path())?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, identity, type, model, created_at, archived_at
+        "SELECT id, identity, type, model, constitution, avatar_path, color, created_at, archived_at
          FROM agents
          WHERE archived_at IS NULL AND deleted_at IS NULL
          ORDER BY identity",
@@ -55,8 +55,11 @@ pub fn get_agents() -> Result<Vec<Agent>> {
             identity: row.get(1)?,
             agent_type: row.get(2)?,
             model: row.get(3)?,
-            created_at: row.get(4)?,
-            archived_at: row.get(5)?,
+            constitution: row.get(4)?,
+            avatar_path: row.get(5)?,
+            color: row.get(6)?,
+            created_at: row.get(7)?,
+            archived_at: row.get(8)?,
         })
     })?
     .collect()
@@ -82,7 +85,7 @@ pub fn get_spawns() -> Result<Vec<Spawn>> {
     let conn = Connection::open(get_db_path())?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, agent_id, project_id, caller_spawn_id, source, status, error, pid, session_id, summary, created_at, last_active_at, resume_count
+        "SELECT id, agent_id, project_id, caller_spawn_id, source, status, error, pid, session_id, summary, trace_hash, created_at, last_active_at
          FROM spawns
          ORDER BY created_at DESC
          LIMIT 100",
@@ -100,9 +103,9 @@ pub fn get_spawns() -> Result<Vec<Spawn>> {
             pid: row.get(7)?,
             session_id: row.get(8)?,
             summary: row.get(9)?,
-            created_at: row.get(10)?,
-            last_active_at: row.get(11)?,
-            resume_count: row.get::<_, Option<i32>>(12)?.unwrap_or(0),
+            trace_hash: row.get(10)?,
+            created_at: row.get(11)?,
+            last_active_at: row.get(12)?,
         })
     })?
     .collect()
@@ -294,6 +297,9 @@ mod tests {
             identity: "zealot".to_string(),
             agent_type: "ai".to_string(),
             model: Some("claude-3-5-sonnet".to_string()),
+            constitution: None,
+            avatar_path: None,
+            color: None,
             created_at: "2025-11-05T12:34:56Z".to_string(),
             archived_at: None,
         };
@@ -313,9 +319,9 @@ mod tests {
             pid: Some(1234),
             session_id: None,
             summary: None,
+            trace_hash: None,
             created_at: "2025-11-05T12:34:56Z".to_string(),
             last_active_at: None,
-            resume_count: 0,
         };
         assert_eq!(sp.status, "active");
     }

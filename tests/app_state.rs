@@ -21,6 +21,9 @@ fn sidebar_navigation_wraps_around_agents() {
             identity: "alpha".to_string(),
             agent_type: "ai".to_string(),
             model: None,
+            constitution: None,
+            avatar_path: None,
+            color: None,
             created_at: "2026-02-05T10:00:00Z".to_string(),
             archived_at: None,
         },
@@ -29,6 +32,9 @@ fn sidebar_navigation_wraps_around_agents() {
             identity: "beta".to_string(),
             agent_type: "ai".to_string(),
             model: None,
+            constitution: None,
+            avatar_path: None,
+            color: None,
             created_at: "2026-02-05T10:01:00Z".to_string(),
             archived_at: None,
         },
@@ -74,9 +80,9 @@ fn spawn_expansion_toggle() {
         pid: Some(1234),
         session_id: Some("sess123".to_string()),
         summary: None,
+        trace_hash: None,
         created_at: "2026-02-05T10:00:00Z".to_string(),
         last_active_at: None,
-        resume_count: 0,
     }];
 
     assert!(!state.expanded_spawns.contains("spawn1"));

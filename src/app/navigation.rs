@@ -64,7 +64,8 @@ impl AppState {
                 None => 0,
                 Some(idx) => (idx + 1) % self.spawns.len(),
             });
-            self.load_spawn_activity();
+            self.spawn_activity.clear();
+            self.spawn_activity_scroll_offset = 0;
         }
     }
 
@@ -75,18 +76,9 @@ impl AppState {
                 Some(0) => self.spawns.len() - 1,
                 Some(idx) => idx - 1,
             });
-            self.load_spawn_activity();
-        }
-    }
-
-    pub fn load_spawn_activity(&mut self) {
-        if let Some(spawn) = self.selected_spawn() {
-            let spawn_id = spawn.id.clone();
-            self.spawn_activity = crate::db::get_spawn_activity(&spawn_id, 200).unwrap_or_default();
-        } else {
             self.spawn_activity.clear();
+            self.spawn_activity_scroll_offset = 0;
         }
-        self.spawn_activity_scroll_offset = 0;
     }
 
     pub fn toggle_right_pane(&mut self) {

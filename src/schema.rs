@@ -17,6 +17,9 @@ pub struct Agent {
     pub identity: String,
     pub agent_type: String,
     pub model: Option<String>,
+    pub constitution: Option<String>,
+    pub avatar_path: Option<String>,
+    pub color: Option<String>,
     pub created_at: String,
     pub archived_at: Option<String>,
 }
@@ -34,9 +37,9 @@ pub struct Spawn {
     pub pid: Option<i32>,
     pub session_id: Option<String>,
     pub summary: Option<String>,
+    pub trace_hash: Option<String>,
     pub created_at: String,
     pub last_active_at: Option<String>,
-    pub resume_count: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
