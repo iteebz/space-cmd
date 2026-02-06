@@ -23,11 +23,11 @@ space-os API (localhost:8228)
 - `GET /api/spawns` — spawn list with stats
 - `GET /api/ledger` — decisions, insights, tasks as activity
 - `GET /api/spawns/{id}/events` — spawn event stream
+- `GET /api/swarm/daemon` — daemon status
+- `GET /api/swarm/tail` — spawn tail logs
 - `GET /api/health` — connection check on startup
 
 **WebSocket**: Live event streaming (TODO: `/ws/events`)
-
-**Local files**: daemon status (state.yaml), tail (JSONL)
 
 ## Module Structure
 
