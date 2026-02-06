@@ -1,36 +1,33 @@
 # space-cmd Architecture
 
-Rust TUI command center for space agents. 3-pane layout: sidebar (agents/spawns), activity stream, spawn detail. Dual-mode data: API-first with DB fallback.
+Rust TUI command center for space agents. 3-pane layout: sidebar (agents/spawns), activity stream, spawn detail. Data sourced from space-os HTTP API.
 
 ## Data Flow
 ```
-space-os API (localhost:8228)    ~/.space/space.db (fallback)
-         ↓ poll 500ms                    ↓ poll 500ms
-         └──────────┬────────────────────┘
-                    ↓
-    Source { mode: Api | Db }
-                    ↓
+space-os API (localhost:8228)
+         ↓ HTTP + WebSocket
+         ↓
+    Source (API wrapper)
+         ↓
     AppState { agents, spawns, activity, spawn_activity }
-                    ↓ render
+         ↓ render
     3-pane TUI: sidebar | activity | session
-                    ↓ input
+         ↓ input
     Commands → bridge CLI → space-os
 ```
 
 ## Data Sources
 
-**API mode** (preferred): HTTP via ureq to space-os FastAPI
+**HTTP API**: reqwest client to space-os FastAPI
 - `GET /api/agents` — agent list with last_active_at
 - `GET /api/spawns` — spawn list with stats
 - `GET /api/ledger` — decisions, insights, tasks as activity
 - `GET /api/spawns/{id}/events` — spawn event stream
 - `GET /api/health` — connection check on startup
 
-**DB mode** (fallback): Direct SQLite reads from `~/.space/space.db`
-- Used when API unavailable (space-os not running)
-- agents, spawns, activity tables only
+**WebSocket**: Live event streaming (TODO: `/ws/events`)
 
-**Always local**: daemon status (state.yaml), tail (JSONL files)
+**Local files**: daemon status (state.yaml), tail (JSONL)
 
 ## Module Structure
 
@@ -39,9 +36,8 @@ src/
 ├── main.rs              Event loop + keybinding dispatch
 ├── lib.rs               Module exports
 ├── schema.rs            Type definitions (Agent, Spawn, Activity)
-├── source.rs            Dual-mode data source (API/DB switch)
+├── source.rs            API wrapper for space-os HTTP endpoints
 ├── api.rs               HTTP client for space-os API
-├── db.rs                SQLite queries + schema version check
 ├── time.rs              ISO timestamp parsing & elapsed time formatting
 │
 ├── app/
@@ -82,7 +78,7 @@ just ci    # format, lint, test, build
 
 ## Notes
 
-- **Read-only** — All writes go through bridge CLI, never direct DB mutations
-- **Polling only** — 500ms loop. No async/tokio
-- **Dual-mode** — API when available, DB fallback. Status bar shows [API] or [DB]
+- **Read-only** — All writes go through bridge CLI
+- **Async** — tokio runtime for HTTP/WebSocket
+- **API-only** — Requires space-os running (no local DB fallback)
 - **No persistence** — Scroll position, selection state resets on restart

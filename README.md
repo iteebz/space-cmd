@@ -5,9 +5,9 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 ## Overview
 
 **Sister repo to [space-os](../space-os/)** — space-cmd is the human command center for space agent orchestration:
-- Reads from `~/.space/space.db` (space-os SQLite bridge)
-- Streams session events from `~/.space/sessions/{provider}/{session_id}.jsonl`
-- Polls agent activity every 500ms
+- Reads from space-os HTTP API (localhost:8228)
+- Streams session events via WebSocket
+- Async runtime with tokio
 - **3-pane layout**: AGENTS/SPAWNS sidebar (25%) | Activity stream (50%) | Spawn activity (25%)
 - **Live agent execution visibility**: See agent thinking, tool calls, results in real-time
 - **Keyboard-driven**: No mouse needed, vim keybindings (h/l/j/k)
@@ -18,7 +18,7 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 
 **See [docs/architecture.md](docs/architecture.md) for complete design.**
 
-**Database path:** `~/.space/space.db` (or `$SPACE_DB`)
+**API endpoint:** `http://localhost:8228` (or `$SPACE_API_URL`)
 
 ## Keybindings
 
@@ -67,5 +67,5 @@ just ci                 # Format, lint, test, build
 
 - **Ratatui** - TUI rendering
 - **Crossterm** - Terminal I/O
-- **Rusqlite** - SQLite bindings (no async, intentional)
-- Zero external dependencies beyond these
+- **Reqwest** - HTTP client
+- **Tokio** - Async runtime
