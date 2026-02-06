@@ -126,17 +126,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if auto_task && result.score < 100 {
-                let human_agent = space_cmd::api::get_human_agent().await.unwrap_or(None);
+                let task_content = format!("fix space-cmd health: {}", result.details.join(", "));
 
-                if let Some(agent) = human_agent {
-                    let task_content =
-                        format!("fix space-cmd health: {}", result.details.join(", "));
-                    match space_cmd::api::create_task(&task_content, &agent.id).await {
-                        Ok(_) => println!("Task created to fix health issues."),
-                        Err(e) => eprintln!("Failed to create task: {}", e),
+                let create_result = std::process::Command::new("task")
+                    .arg("add")
+                    .arg(&task_content)
+                    .output();
+
+                match create_result {
+                    Ok(output) if output.status.success() => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let task_id = stdout
+                            .lines()
+                            .find(|l| l.starts_with("Added:"))
+                            .and_then(|l| l.split_whitespace().nth(1))
+                            .unwrap_or("unknown");
+                        println!("Task created: {}", task_id);
                     }
-                } else {
-                    eprintln!("No human agent found to create task.");
+                    Ok(output) => {
+                        eprintln!("Failed to create task via CLI:");
+                        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to spawn `task add`: {}", e);
+                    }
                 }
             }
 
