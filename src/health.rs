@@ -127,7 +127,7 @@ pub async fn calculate_health() -> HealthScore {
             score -= 10;
             details.push("Ledger freshness unknown (no events or parse failed).".to_string());
         }
-        Some(age) if age > 60 => {
+        Some(age) if age > 3600 => {
             score -= 10;
             details.push(format!("Ledger stale: last event {}s ago.", age));
         }
@@ -151,7 +151,7 @@ pub async fn calculate_health() -> HealthScore {
             score -= 10;
             details.push("Spawns freshness unknown (no spawns or parse failed).".to_string());
         }
-        Some(age) if age > 60 => {
+        Some(age) if age > 3600 => {
             score -= 10;
             details.push(format!("Spawns stale: last activity {}s ago.", age));
         }
