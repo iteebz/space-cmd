@@ -79,11 +79,7 @@ fn get_repo_health() -> Option<RepoHealth> {
         now - ts
     });
 
-    let ci_ok = Command::new("just")
-        .arg("ci")
-        .output()
-        .ok()
-        .map(|o| o.status.success());
+    let ci_ok = None;
 
     Some(RepoHealth {
         is_git_repo,
