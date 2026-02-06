@@ -6,7 +6,7 @@ Rust TUI for steering space agents. Observability + control surface for `space-o
 
 **Sister repo to [space-os](../space-os/)** — space-cmd is the human command center for space agent orchestration:
 - Reads from space-os HTTP API (localhost:8228)
-- Streams session events via WebSocket
+- Streams activity via polling (`/api/swarm/tail`) (WS planned)
 - Async runtime with tokio
 - **3-pane layout**: AGENTS/SPAWNS sidebar (25%) | Activity stream (50%) | Spawn activity (25%)
 - **Live agent execution visibility**: See agent thinking, tool calls, results in real-time

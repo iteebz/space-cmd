@@ -28,6 +28,22 @@ enum Commands {
         #[arg(short, long)]
         verbose: bool,
 
+        /// Run `just ci` in each repo (can be slow)
+        #[arg(long)]
+        ci: bool,
+
+        /// Check a specific repo (repeatable). Defaults to current directory.
+        #[arg(long = "repo")]
+        repos: Vec<std::path::PathBuf>,
+
+        /// Check all git repos under this directory (depth 1).
+        #[arg(long)]
+        repos_dir: Option<std::path::PathBuf>,
+
+        /// Timeout for `just ci` per repo
+        #[arg(long, default_value_t = 120)]
+        timeout_s: u64,
+
         /// Automatically create a task if health is degraded
         #[arg(long)]
         auto_task: bool,
@@ -59,8 +75,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Health { verbose, auto_task }) => {
-            let result = health::calculate_health().await;
+        Some(Commands::Health {
+            verbose,
+            ci,
+            repos,
+            repos_dir,
+            timeout_s,
+            auto_task,
+        }) => {
+            let options = health::RepoHealthOptions {
+                repos,
+                repos_dir,
+                run_ci: ci,
+                timeout_s,
+            };
+            let result = health::calculate_health(options).await;
             println!("Health Score: {}/100", result.score);
             println!(
                 "API: {} (ok: {}, latency: {:?}ms)",
@@ -70,16 +99,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "Freshness: ledger={:?}s spawns={:?}s",
                 result.ledger_freshness_s, result.spawns_freshness_s
             );
-            if let Some(repo) = &result.repo {
+            println!(
+                "Scores: api={}/100 repos={}/100",
+                result.api_score, result.repos_score
+            );
+            for repo in &result.repos {
                 if repo.is_git_repo {
                     println!(
-                        "Repo: branch={} clean={} last_commit={:?}s ago",
+                        "Repo: {} branch={} clean={:?} last_commit={:?}s ago ci_ok={:?} ci_ms={:?}",
+                        repo.path,
                         repo.branch.as_deref().unwrap_or("?"),
                         repo.is_clean,
-                        repo.last_commit_age_s
+                        repo.last_commit_age_s,
+                        repo.ci_ok,
+                        repo.ci_duration_ms
                     );
                 } else {
-                    println!("Repo: not a git repository");
+                    println!("Repo: {} not a git repository", repo.path);
                 }
             }
 

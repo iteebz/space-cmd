@@ -5,7 +5,7 @@ Rust TUI command center for space agents. 3-pane layout: sidebar (agents/spawns)
 ## Data Flow
 ```
 space-os API (localhost:8228)
-         ↓ HTTP + WebSocket
+         ↓ HTTP polling (500ms)
          ↓
     Source (API wrapper)
          ↓
