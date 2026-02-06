@@ -19,7 +19,6 @@ impl AppState {
         if let Some(query) = last_word.strip_prefix('@') {
             self.autocomplete_mode = Some(AutocompleteMode::Agent);
             self.autocomplete_query = query.to_string();
-            self.load_agent_autocomplete();
         } else if let Some(query) = last_word.strip_prefix('/')
             && !query.is_empty()
         {
@@ -29,8 +28,8 @@ impl AppState {
         }
     }
 
-    pub fn load_agent_autocomplete(&mut self) {
-        if let Ok(agents) = crate::db::get_agents() {
+    pub async fn load_agent_autocomplete(&mut self) {
+        if let Ok(agents) = crate::api::get_agents().await {
             self.autocomplete_list = agents.iter().map(|a| a.identity.clone()).collect();
             self.filter_autocomplete();
         }

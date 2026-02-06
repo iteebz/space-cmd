@@ -1,21 +1,25 @@
 use crate::schema::{Activity, Agent, DaemonStatus, Spawn, TailEntry};
 use std::collections::HashMap;
 use std::env;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 const DEFAULT_BASE: &str = "http://localhost:8228";
 const TIMEOUT: Duration = Duration::from_millis(800);
 
-fn base_url() -> String {
+pub fn api_base_url() -> String {
     env::var("SPACE_API_URL").unwrap_or_else(|_| DEFAULT_BASE.to_string())
 }
 
-fn agent() -> ureq::Agent {
-    ureq::Agent::new_with_config(
-        ureq::config::Config::builder()
-            .timeout_global(Some(TIMEOUT))
-            .build(),
-    )
+static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn client() -> &'static reqwest::Client {
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(TIMEOUT)
+            .build()
+            .expect("failed to create http client")
+    })
 }
 
 #[derive(Debug)]
@@ -33,31 +37,37 @@ impl std::fmt::Display for ApiError {
     }
 }
 
+impl std::error::Error for ApiError {}
+
 type Result<T> = std::result::Result<T, ApiError>;
 
-fn get_json<T: serde::de::DeserializeOwned>(path: &str) -> Result<T> {
-    let url = format!("{}{}", base_url(), path);
-    let mut response = agent()
+async fn get_json<T: serde::de::DeserializeOwned>(path: &str) -> Result<T> {
+    let url = format!("{}{}", api_base_url(), path);
+    let response = client()
         .get(&url)
-        .call()
+        .send()
+        .await
         .map_err(|e| ApiError::Network(e.to_string()))?;
 
-    let body = response
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-
-    serde_json::from_str(&body).map_err(|e| ApiError::Decode(e.to_string()))
+    response
+        .json::<T>()
+        .await
+        .map_err(|e| ApiError::Decode(e.to_string()))
 }
 
-pub fn health_ok() -> bool {
-    get_json::<serde_json::Value>("/api/health")
+pub async fn get_health() -> Result<serde_json::Value> {
+    get_json("/api/health").await
+}
+
+pub async fn health_ok() -> bool {
+    get_health()
+        .await
         .map(|v| v["database"]["connected"].as_bool().unwrap_or(false))
         .unwrap_or(false)
 }
 
-pub fn get_agents() -> Result<Vec<Agent>> {
-    let raw: Vec<serde_json::Value> = get_json("/api/agents")?;
+pub async fn get_agents() -> Result<Vec<Agent>> {
+    let raw: Vec<serde_json::Value> = get_json("/api/agents").await?;
     Ok(raw
         .into_iter()
         .map(|v| Agent {
@@ -74,13 +84,13 @@ pub fn get_agents() -> Result<Vec<Agent>> {
         .collect())
 }
 
-pub fn get_agent_identities() -> Result<HashMap<String, String>> {
-    let agents = get_agents()?;
+pub async fn get_agent_identities() -> Result<HashMap<String, String>> {
+    let agents = get_agents().await?;
     Ok(agents.into_iter().map(|a| (a.id, a.identity)).collect())
 }
 
-pub fn get_spawns() -> Result<Vec<Spawn>> {
-    let raw: Vec<serde_json::Value> = get_json("/api/spawns")?;
+pub async fn get_spawns() -> Result<Vec<Spawn>> {
+    let raw: Vec<serde_json::Value> = get_json("/api/spawns").await?;
     Ok(raw
         .into_iter()
         .map(|v| Spawn {
@@ -101,13 +111,13 @@ pub fn get_spawns() -> Result<Vec<Spawn>> {
         .collect())
 }
 
-pub fn get_activity(limit: usize) -> Result<Vec<Activity>> {
-    let raw: Vec<serde_json::Value> = get_json(&format!("/api/ledger?limit={}", limit))?;
+pub async fn get_activity(limit: usize) -> Result<Vec<Activity>> {
+    let raw: Vec<serde_json::Value> = get_json(&format!("/api/ledger?limit={}", limit)).await?;
     Ok(raw.into_iter().filter_map(ledger_to_activity).collect())
 }
 
-pub fn get_agent_activity(agent_id: &str, limit: usize) -> Result<Vec<Activity>> {
-    let all = get_activity(limit * 2)?;
+pub async fn get_agent_activity(agent_id: &str, limit: usize) -> Result<Vec<Activity>> {
+    let all = get_activity(limit * 2).await?;
     Ok(all
         .into_iter()
         .filter(|a| a.agent_id == agent_id)
@@ -115,13 +125,13 @@ pub fn get_agent_activity(agent_id: &str, limit: usize) -> Result<Vec<Activity>>
         .collect())
 }
 
-pub fn get_ledger_activity(limit: usize) -> Result<Vec<Activity>> {
-    get_activity(limit)
+pub async fn get_ledger_activity(limit: usize) -> Result<Vec<Activity>> {
+    get_activity(limit).await
 }
 
-pub fn get_spawn_activity(spawn_id: &str, _limit: usize) -> Result<Vec<Activity>> {
+pub async fn get_spawn_activity(spawn_id: &str, _limit: usize) -> Result<Vec<Activity>> {
     let events: serde_json::Value =
-        get_json(&format!("/api/spawns/{}/events?limit=200", spawn_id))?;
+        get_json(&format!("/api/spawns/{}/events?limit=200", spawn_id)).await?;
     let items = events["events"].as_array().cloned().unwrap_or_default();
     Ok(items
         .into_iter()
@@ -157,14 +167,45 @@ fn ledger_to_activity(v: serde_json::Value) -> Option<Activity> {
     })
 }
 
-pub fn get_daemon_status(active_count: usize) -> DaemonStatus {
-    crate::db::get_daemon_status(active_count)
+pub async fn get_daemon_status(_active_count: usize) -> DaemonStatus {
+    get_json::<DaemonStatus>("/api/swarm/daemon")
+        .await
+        .unwrap_or_default()
 }
 
-pub fn get_tail(limit: usize) -> Vec<TailEntry> {
-    crate::db::get_tail(limit)
+pub async fn get_tail(limit: usize) -> Vec<TailEntry> {
+    get_json::<Vec<TailEntry>>(&format!("/api/swarm/tail?limit={}", limit))
+        .await
+        .unwrap_or_default()
 }
 
-pub fn get_agent_tail(agent: &str, limit: usize) -> Vec<TailEntry> {
-    crate::db::get_agent_tail(agent, limit)
+pub async fn get_agent_tail(agent: &str, limit: usize) -> Vec<TailEntry> {
+    get_json::<Vec<TailEntry>>(&format!("/api/swarm/tail?limit={}&agent={}", limit, agent))
+        .await
+        .unwrap_or_default()
+}
+
+pub async fn get_human_agent() -> Result<Option<Agent>> {
+    let agents = get_agents().await?;
+    Ok(agents.into_iter().find(|a| a.agent_type == "human"))
+}
+
+pub async fn create_task(content: &str, creator_id: &str) -> Result<serde_json::Value> {
+    let url = format!("{}{}", api_base_url(), "/api/tasks");
+    let body = serde_json::json!({
+        "content": content,
+    });
+
+    let response = client()
+        .post(&url)
+        .header("SPACE_IDENTITY", creator_id)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    response
+        .json()
+        .await
+        .map_err(|e| ApiError::Decode(e.to_string()))
 }

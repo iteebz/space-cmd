@@ -1,5 +1,4 @@
 use crate::schema::{Activity, Agent, DaemonStatus, Spawn, TailEntry};
-use crate::source;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -29,7 +28,6 @@ pub struct AppState {
     pub paused: bool,
     pub all_stream: bool,
     pub right_pane: RightPane,
-    pub source_mode: source::Mode,
     pub active_tab: SidebarTab,
     pub active_agent_idx: usize,
     pub active_spawn_idx: usize,
@@ -68,7 +66,6 @@ impl AppState {
             paused: false,
             all_stream: false,
             right_pane: RightPane::Stream,
-            source_mode: source::Mode::Db,
             active_tab: SidebarTab::Spawns,
             active_agent_idx: 0,
             active_spawn_idx: 0,

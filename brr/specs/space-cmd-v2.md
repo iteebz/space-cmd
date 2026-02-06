@@ -11,6 +11,12 @@ Solution
 - Remove DB reads. Replace daemon status and tail with API endpoints (or WS). Single data model.
 - Keep UI as a read-only control surface. Writes go through bridge CLI.
 
+Self-improving repo loop
+- **Detect drift:** treat schema/API changes as expected; only the API contract is stable. DB reads are technical debt, not a feature. [i/b2417329]
+- **Measure health:** add a single `health`/`score` command that reports data-source mode, API latency/error rate, and event freshness (last ledger/spawn update age). [t/350826b0]
+- **Auto-file regressions:** on CI degradation (failures, perf cliffs, flaky tests), open a task with the failing command + artifact pointer. [t/398535f6]
+- **Close the loop:** every regression becomes a reproducible check; every fix upgrades the repo’s ability to catch it next time.
+
 Boundary
 - No DB schema coupling in space-cmd.
 - No persistence beyond last-known cache on disk.

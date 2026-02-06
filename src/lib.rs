@@ -1,6 +1,6 @@
 pub mod api;
 pub mod app;
-pub mod db;
+pub mod health;
 pub mod schema;
 pub mod source;
 pub mod time;

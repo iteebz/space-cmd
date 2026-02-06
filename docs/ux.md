@@ -48,4 +48,10 @@
 
 ## Data Source
 
-All data from `~/.space/space.db` polled every 500ms. Pure DB reads, no file watchers.
+space-cmd is moving to **API-first**: poll space-os on `SPACE_API_URL` (default `http://localhost:8228`) every 500ms.
+
+- **API mode (preferred):** HTTP snapshots (agents/spawns/ledger) + spawn events via API endpoints.
+- **DB mode (fallback):** direct SQLite reads from `~/.space/space.db` when the API is unavailable.
+- **No watchers:** polling only (v2 may add WS for live events).
+
+Design intent: deprecate DB mode once API parity is complete.
